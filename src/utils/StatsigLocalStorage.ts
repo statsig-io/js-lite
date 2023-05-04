@@ -1,5 +1,3 @@
-import { LOCAL_STORAGE_KEYS, STORAGE_PREFIX } from './Constants';
-
 export default class StatsigLocalStorage {
   public static disabled: boolean = false;
   private static fallbackSessionCache: Record<string, string> = {};
@@ -32,35 +30,6 @@ export default class StatsigLocalStorage {
     } catch (e) {}
 
     delete this.fallbackSessionCache[key];
-  }
-
-  public static cleanup(): void {
-    try {
-      if (
-        this.isStorageAccessible(true) // clean up all storage keys if this session sets disabled
-      ) {
-        for (var key in window.localStorage) {
-          if (typeof window.localStorage[key] !== 'string') {
-            continue;
-          }
-          if (key == null) {
-            continue;
-          }
-          // if local storage is disabled on a subsequent session on this device,
-          // lets delete everything we already have stored in local storage
-          if (!this.disabled && key in LOCAL_STORAGE_KEYS) {
-            continue;
-          }
-          if (
-            !this.disabled &&
-            key.substring(0, STORAGE_PREFIX.length) !== STORAGE_PREFIX
-          ) {
-            continue;
-          }
-          window.localStorage.removeItem(key);
-        }
-      }
-    } catch (e) {}
   }
 
   private static canAccessStorageAccessible: boolean | null = null;

@@ -5,7 +5,6 @@ import { EvaluationDetails } from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
 import { STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY } from './utils/Constants';
 import Diagnostics from './utils/Diagnostics';
-import StatsigAsyncStorage from './utils/StatsigAsyncStorage';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 
 const INTERNAL_EVENT_PREFIX = 'statsig::';
@@ -13,11 +12,6 @@ const CONFIG_EXPOSURE_EVENT = INTERNAL_EVENT_PREFIX + 'config_exposure';
 const LAYER_EXPOSURE_EVENT = INTERNAL_EVENT_PREFIX + 'layer_exposure';
 const GATE_EXPOSURE_EVENT = INTERNAL_EVENT_PREFIX + 'gate_exposure';
 const LOG_FAILURE_EVENT = INTERNAL_EVENT_PREFIX + 'log_event_failed';
-const APP_ERROR_EVENT = INTERNAL_EVENT_PREFIX + 'app_error';
-const APP_METRICS_PAGE_LOAD_EVENT =
-  INTERNAL_EVENT_PREFIX + 'app_metrics::page_load_time';
-const APP_METRICS_DOM_INTERACTIVE_EVENT =
-  INTERNAL_EVENT_PREFIX + 'app_metrics::dom_interactive_time';
 const DIAGNOSTICS_EVENT = INTERNAL_EVENT_PREFIX + 'diagnostics';
 const DEFAULT_VALUE_WARNING =
   INTERNAL_EVENT_PREFIX + 'default_value_type_mismatch';
@@ -261,64 +255,14 @@ export default class StatsigLogger {
     defaultValueEvent.setMetadata(metadata);
     this.log(defaultValueEvent);
     this.loggedErrors.add(message);
-    this.sdkInternal.getConsoleLogger().error(message);
   }
 
-  public logAppError(
-    user: StatsigUser | null,
-    message: string,
-    metadata: object,
-  ) {
-    const trimmedMessage = message.substring(0, 128);
-    if (
-      this.loggedErrors.has(trimmedMessage) ||
-      this.loggedErrors.size > MAX_ERRORS_TO_LOG
-    ) {
-      return;
-    }
-
-    const errorEvent = new LogEvent(APP_ERROR_EVENT);
-    errorEvent.setUser(user);
-    errorEvent.setValue(trimmedMessage);
-    errorEvent.setMetadata(metadata);
-    this.log(errorEvent);
-    this.loggedErrors.add(trimmedMessage);
-  }
 
   public logDiagnostics(user: StatsigUser | null, diagnostics: Diagnostics) {
     const latencyEvent = new LogEvent(DIAGNOSTICS_EVENT);
     latencyEvent.setUser(user);
     latencyEvent.setMetadata(diagnostics.getMarkers());
     this.log(latencyEvent);
-  }
-
-  public logAppMetrics(user: StatsigUser | null) {
-    if (typeof window?.performance?.getEntriesByType !== 'function') {
-      return;
-    }
-    const entries = window.performance.getEntriesByType('navigation');
-    if (!entries || entries.length < 1) {
-      return;
-    }
-
-    const navEntry = entries[0] as any;
-    const metadata = {
-      statsig_dimensions: {
-        url: navEntry.name,
-      },
-    };
-
-    const latencyEvent = new LogEvent(APP_METRICS_PAGE_LOAD_EVENT);
-    latencyEvent.setUser(user);
-    latencyEvent.setValue(navEntry.duration);
-    latencyEvent.setMetadata(metadata);
-    this.log(latencyEvent);
-
-    const domInteractiveEvent = new LogEvent(APP_METRICS_DOM_INTERACTIVE_EVENT);
-    domInteractiveEvent.setUser(user);
-    domInteractiveEvent.setValue(navEntry.domInteractive - navEntry.startTime);
-    domInteractiveEvent.setMetadata(metadata);
-    this.log(domInteractiveEvent);
   }
 
   public shutdown(): void {
@@ -431,13 +375,6 @@ export default class StatsigLogger {
         this.clearLocalStorageRequests();
         return;
       }
-      if (StatsigAsyncStorage.asyncStorage) {
-        await StatsigAsyncStorage.setItemAsync(
-          STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY,
-          requestsCopy,
-        );
-        return;
-      }
       StatsigLocalStorage.setItem(
         STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY,
         requestsCopy,
@@ -448,15 +385,9 @@ export default class StatsigLogger {
   public async sendSavedRequests(): Promise<void> {
     let failedRequests;
     let fireAndForget = false;
-    if (StatsigAsyncStorage.asyncStorage) {
-      failedRequests = await StatsigAsyncStorage.getItemAsync(
-        STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY,
-      );
-    } else {
-      failedRequests = StatsigLocalStorage.getItem(
-        STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY,
-      );
-    }
+    failedRequests = StatsigLocalStorage.getItem(
+      STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY,
+    );
     if (failedRequests == null) {
       this.clearLocalStorageRequests();
       return;
@@ -511,13 +442,7 @@ export default class StatsigLogger {
   }
 
   private clearLocalStorageRequests(): void {
-    if (StatsigAsyncStorage.asyncStorage) {
-      StatsigAsyncStorage.removeItemAsync(
-        STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY,
-      );
-    } else {
-      StatsigLocalStorage.removeItem(STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY);
-    }
+    StatsigLocalStorage.removeItem(STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY);
   }
 
   private newFailedRequest(name: string, queue: object[]): void {

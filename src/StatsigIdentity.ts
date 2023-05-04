@@ -1,9 +1,6 @@
-import { v4 as uuidv4 } from 'uuid';
-
 import { _SDKPackageInfo } from './StatsigClient';
 import { StatsigUser } from './StatsigUser';
 import { STATSIG_STABLE_ID_KEY } from './utils/Constants';
-import StatsigAsyncStorage from './utils/StatsigAsyncStorage';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 
 import { version as SDKVersion } from './SDKVersion';
@@ -46,10 +43,6 @@ export type Platform = {
   } | null;
 };
 
-export type UUID = {
-  v4(): string | number[];
-};
-
 type StatsigMetadata = {
   sdkType: string;
   sdkVersion: string;
@@ -67,16 +60,13 @@ export default class Identity {
   private statsigMetadata: StatsigMetadata;
   private platform: Platform | null = null;
   private nativeModules: NativeModules | null = null;
-  private reactNativeUUID?: UUID;
   private sdkType: string = 'js-client';
   private sdkVersion: string;
 
   public constructor(
     user: StatsigUser | null,
     overrideStableID?: string | null,
-    reactNativeUUID?: UUID,
   ) {
-    this.reactNativeUUID = reactNativeUUID;
     this.user = user;
     this.sdkVersion = SDKVersion;
     this.statsigMetadata = {
@@ -85,12 +75,10 @@ export default class Identity {
     };
 
     let stableID = overrideStableID;
-    if (!StatsigAsyncStorage.asyncStorage) {
-      stableID =
+    stableID =
         stableID ??
         StatsigLocalStorage.getItem(STATSIG_STABLE_ID_KEY) ??
         this.getUUID();
-    }
     if (stableID) {
       this.statsigMetadata.stableID = stableID;
     }
@@ -103,17 +91,6 @@ export default class Identity {
         this.statsigMetadata.stableID,
       );
     }
-  }
-
-  public async initAsync(): Promise<Identity> {
-    let stableID: string | null | undefined = this.statsigMetadata.stableID;
-    if (!stableID) {
-      stableID = await StatsigAsyncStorage.getItemAsync(STATSIG_STABLE_ID_KEY);
-      stableID = stableID ?? this.getUUID();
-    }
-    StatsigAsyncStorage.setItemAsync(STATSIG_STABLE_ID_KEY, stableID);
-    this.statsigMetadata.stableID = stableID;
-    return this;
   }
 
   public getSDKType(): string {
@@ -169,7 +146,21 @@ export default class Identity {
   }
 
   private getUUID(): string {
-    return (this.reactNativeUUID?.v4() as string) ?? uuidv4();
+    let uuid = '';
+    for (let i = 0; i < 32; i++) {
+      if (i === 8 || i === 12 || i === 16 || i === 20) {
+        uuid += '-';
+      }
+      const randomDigit = Math.random() * 16 | 0;
+      if (i === 12) {
+        uuid += '4';
+      } else if (i === 16) {
+        uuid += (randomDigit & 3 | 8).toString(16);
+      } else {
+        uuid += randomDigit.toString(16);
+      }
+    }
+    return uuid;
   }
 
   public setRNDeviceInfo(deviceInfo: DeviceInfo): void {

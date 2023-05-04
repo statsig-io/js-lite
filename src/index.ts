@@ -2,13 +2,9 @@ import DynamicConfig from './DynamicConfig';
 import { StatsigUninitializedError } from './Errors';
 import Layer from './Layer';
 import StatsigClient, { StatsigOverrides } from './StatsigClient';
-import StatsigRuntime from './StatsigRuntime';
 import { StatsigOptions } from './StatsigSDKOptions';
 import { EvaluationDetails, EvaluationReason } from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
-import { default as PolyfillObjectEntries } from './utils/Object.entries';
-import { default as PolyfillObjectFromEntries } from './utils/Object.fromEntries';
-import { default as PolyfillPromiseFinally } from './utils/Promise.finally';
 
 export { default as DynamicConfig } from './DynamicConfig';
 export { default as Layer } from './Layer';
@@ -29,7 +25,6 @@ export type {
   ExpoDevice,
   NativeModules,
   Platform,
-  UUID,
 } from './StatsigIdentity';
 export { StatsigEnvironment, StatsigOptions } from './StatsigSDKOptions';
 export type {
@@ -39,23 +34,9 @@ export type {
 export { EvaluationReason } from './StatsigStore';
 export type { EvaluationDetails } from './StatsigStore';
 export { StatsigUser } from './StatsigUser';
-export { default as StatsigAsyncStorage } from './utils/StatsigAsyncStorage';
-export type { AsyncStorage } from './utils/StatsigAsyncStorage';
-
-PolyfillObjectEntries();
-PolyfillObjectFromEntries();
-PolyfillPromiseFinally();
 
 export default class Statsig {
   private static instance: StatsigClient | null = null;
-
-  static get encodeIntializeCall(): boolean {
-    return StatsigRuntime.encodeInitializeCall;
-  }
-
-  static set encodeIntializeCall(value: boolean) {
-    StatsigRuntime.encodeInitializeCall = value;
-  }
 
   private constructor() {}
 
@@ -71,10 +52,6 @@ export default class Statsig {
     }
 
     return inst.initializeAsync();
-  }
-
-  public static async prefetchUsers(users: StatsigUser[]): Promise<void> {
-    return await Statsig.getClientX().prefetchUsers(users);
   }
 
   public static setInitializeValues(
@@ -203,61 +180,6 @@ export default class Statsig {
   }
 
   /**
-   * Overrides the given gate locally with the given value
-   * @param gateName - name of the gate to override
-   * @param value - value to assign to the gate
-   */
-  public static overrideGate(gateName: string, value: boolean): void {
-    Statsig.getClientX().overrideGate(gateName, value);
-  }
-
-  /**
-   * Overrides the given config locally with the given value
-   * @param configName - name of the config to override
-   * @param value - value to assign to the config
-   */
-  public static overrideConfig(configName: string, value: object): void {
-    Statsig.getClientX().overrideConfig(configName, value);
-  }
-
-  /**
-   * Overrides the given layer locally with the given value
-   * @param layerName - name of the layer to override
-   * @param value - value to assign to the layer
-   */
-  public static overrideLayer(layerName: string, value: object): void {
-    Statsig.getClientX().overrideLayer(layerName, value);
-  }
-
-  /**
-   * @param name the gate override to remove. Leave this parameter empty to remove all gate overrides.
-   */
-  public static removeGateOverride(name?: string): void {
-    Statsig.getClientX().removeGateOverride(name);
-  }
-
-  /**
-   * @param name the config override to remove. Leave this parameter empty to remove all config overrides.
-   */
-  public static removeConfigOverride(name?: string): void {
-    Statsig.getClientX().removeConfigOverride(name);
-  }
-
-  /**
-   * @param name the layer override to remove. Leave this parameter empty to remove all layer overrides.
-   */
-  public static removeLayerOverride(name?: string): void {
-    Statsig.getClientX().removeLayerOverride(name);
-  }
-
-  /**
-   * @returns The local gate and config overrides
-   */
-  public static getAllOverrides(): StatsigOverrides {
-    return Statsig.getClientX().getAllOverrides();
-  }
-
-  /**
    * @returns The Statsig stable ID used for device level experiments
    */
   public static getStableID(): string {
@@ -276,22 +198,6 @@ export default class Statsig {
         time: 0,
       }
     );
-  }
-
-  /**
-   * @deprecated use removeGateOverride or removeConfigOverride
-   * @param name the gate override to remove
-   */
-  public static removeOverride(name?: string): void {
-    Statsig.getClientX().removeOverride(name);
-  }
-
-  /**
-   * @deprecated use getAllOverrides
-   * @returns the gate overrides
-   */
-  public static getOverrides(): Record<string, any> {
-    return Statsig.getClientX().getOverrides();
   }
 
   /**

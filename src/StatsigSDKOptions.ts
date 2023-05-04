@@ -36,7 +36,6 @@ export type StatsigOptions = {
   disableAutoMetricsLogging?: boolean;
   initializeValues?: Record<string, any> | null;
   eventLoggingApi?: string;
-  prefetchUsers?: StatsigUser[];
   disableLocalStorage?: boolean;
   initCompletionCallback?: InitCompletionCallback | null;
   updateUserCompletionCallback?: UpdateUserCompletionCallback | null;
@@ -75,7 +74,6 @@ export default class StatsigSDKOptions {
   private disableAutoMetricsLogging: boolean;
   private initializeValues: Record<string, any> | null;
   private eventLoggingApi: string;
-  private prefetchUsers: StatsigUser[];
   private disableLocalStorage: boolean;
   private initCompletionCallback: InitCompletionCallback | null;
   private updateCompletionCallback: UpdateUserCompletionCallback | null;
@@ -125,7 +123,6 @@ export default class StatsigSDKOptions {
     this.eventLoggingApi = eventLoggingApi.endsWith('/')
       ? eventLoggingApi
       : eventLoggingApi + '/';
-    this.prefetchUsers = options.prefetchUsers ?? [];
     this.disableLocalStorage = options.disableLocalStorage ?? false;
     this.initCompletionCallback = options.initCompletionCallback ?? null;
     this.updateCompletionCallback =
@@ -187,10 +184,6 @@ export default class StatsigSDKOptions {
 
   getEventLoggingApi(): string {
     return this.eventLoggingApi;
-  }
-
-  getPrefetchUsers(): StatsigUser[] {
-    return this.prefetchUsers;
   }
 
   getDisableLocalStorage(): boolean {

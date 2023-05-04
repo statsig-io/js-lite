@@ -1,5 +1,4 @@
 import { IHasStatsigInternal } from './StatsigClient';
-import StatsigRuntime from './StatsigRuntime';
 import { StatsigUser } from './StatsigUser';
 import Diagnostics, {
   DiagnosticsEvent,
@@ -272,22 +271,7 @@ export default class StatsigNetwork {
     } else {
       this.leakyBucket[url] = counter + 1;
     }
-
-    let shouldEncode =
-      endpointName === StatsigEndpoint.Initialize &&
-      StatsigRuntime.encodeInitializeCall &&
-      typeof window !== 'undefined' &&
-      typeof window?.btoa === 'function';
-
     let postBody = JSON.stringify(body);
-    if (shouldEncode) {
-      try {
-        const encoded = window.btoa(postBody).split('').reverse().join('');
-        postBody = encoded;
-      } catch (_e) {
-        shouldEncode = false;
-      }
-    }
 
     const params: RequestInit = {
       method: 'POST',
@@ -298,7 +282,6 @@ export default class StatsigNetwork {
         'STATSIG-CLIENT-TIME': Date.now() + '',
         'STATSIG-SDK-TYPE': this.sdkInternal.getSDKType(),
         'STATSIG-SDK-VERSION': this.sdkInternal.getSDKVersion(),
-        'STATSIG-ENCODED': shouldEncode ? '1' : '0',
       },
     };
 

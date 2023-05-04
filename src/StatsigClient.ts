@@ -6,14 +6,7 @@ import {
 } from './Errors';
 import Layer, { LogParameterFunction } from './Layer';
 import LogEvent from './LogEvent';
-import type {
-  DeviceInfo,
-  ExpoConstants,
-  ExpoDevice,
-  NativeModules,
-  Platform,
-} from './StatsigIdentity';
-import StatsigIdentity, { UUID } from './StatsigIdentity';
+import StatsigIdentity from './StatsigIdentity';
 import StatsigLogger from './StatsigLogger';
 import StatsigNetwork from './StatsigNetwork';
 import StatsigSDKOptions, {
@@ -27,14 +20,11 @@ import StatsigStore, {
 } from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
 import { getUserCacheKey } from './utils/Hashing';
-import type { AsyncStorage } from './utils/StatsigAsyncStorage';
-import StatsigAsyncStorage from './utils/StatsigAsyncStorage';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 import Diagnostics, {
   DiagnosticsEvent,
   DiagnosticsKey,
 } from './utils/Diagnostics';
-import ConsoleLogger from './utils/ConsoleLogger';
 import { now } from './utils/Timing';
 
 const MAX_VALUE_SIZE = 64;
@@ -81,16 +71,7 @@ export interface IStatsig {
   ): void;
   updateUser(user: StatsigUser | null): Promise<boolean>;
   shutdown(): void;
-  overrideGate(gateName: string, value: boolean): void;
-  overrideConfig(gateName: string, value: Record<string, any>): void;
-  removeGateOverride(gateName?: string): void;
-  removeConfigOverride(configName?: string): void;
-  getAllOverrides(): StatsigOverrides;
   getStableID(): string;
-
-  // DEPRECATED
-  removeOverride(overrideName?: string | null): void;
-  getOverrides(): Record<string, any>;
 }
 
 export interface IHasStatsigInternal {
@@ -105,7 +86,6 @@ export interface IHasStatsigInternal {
   getErrorBoundary(): ErrorBoundary;
   getSDKType(): string;
   getSDKVersion(): string;
-  getConsoleLogger(): ConsoleLogger;
 }
 
 export type StatsigOverrides = {
@@ -116,7 +96,6 @@ export type StatsigOverrides = {
 
 export default class StatsigClient implements IHasStatsigInternal, IStatsig {
   // RN dependencies
-  private static reactNativeUUID?: UUID;
   private appState: AppState | null = null;
   private currentAppState: AppStateStatus | null = null;
 
@@ -124,7 +103,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
   private initCalled: boolean = false;
   private pendingInitPromise: Promise<void> | null = null;
   private optionalLoggingSetup: boolean = false;
-  private prefetchedUsersByCacheKey: Record<string, StatsigUser> = {};
   private startTime;
 
   private initializeDiagnostics: Diagnostics;
@@ -182,11 +160,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
     return this.identity.getSDKVersion();
   }
 
-  private consoleLogger: ConsoleLogger;
-  public getConsoleLogger(): ConsoleLogger {
-    return this.consoleLogger;
-  }
-
   public constructor(
     sdkKey: string,
     user?: StatsigUser | null,
@@ -205,13 +178,11 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
     this.ready = false;
     this.sdkKey = sdkKey;
     this.options = new StatsigSDKOptions(options);
-    this.consoleLogger = new ConsoleLogger(this.options.getLogLevel());
     StatsigLocalStorage.disabled = this.options.getDisableLocalStorage();
     this.initializeDiagnostics = new Diagnostics('initialize');
     this.identity = new StatsigIdentity(
       this.normalizeUser(user ?? null),
       this.options.getOverrideStableID(),
-      StatsigClient.reactNativeUUID,
     );
 
     this.network = new StatsigNetwork(this);
@@ -226,7 +197,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
       this.initCalled = true;
 
       setTimeout(() => this.delayedSetup(), 20);
-      this.handleOptionalLogging();
       if (cb) {
         cb(now() - this.startTime, true, null);
       }
@@ -235,9 +205,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
 
   private delayedSetup(): void {
     this.errorBoundary.swallow('delayedSetup', () => {
-      if (this.options.getInitializeValues() != null) {
-        this.fireAndForgetPrefechUsers();
-      }
       this.identity.saveStableID();
       this.logger.sendSavedRequests();
     });
@@ -261,7 +228,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
         }
         // we wont have access to window/document/localStorage if these run on the server
         // so try to run whenever this is called
-        this.handleOptionalLogging();
         this.logger.sendSavedRequests();
         if (cb) {
           cb(now() - this.startTime, true, null);
@@ -297,10 +263,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
           DiagnosticsEvent.START,
         );
         this.initCalled = true;
-        if (StatsigAsyncStorage.asyncStorage) {
-          await this.identity.initAsync();
-          await this.store.loadFromAsyncStorage();
-        }
 
         if (
           this.appState &&
@@ -321,7 +283,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
         const user = this.identity.getUser();
         this.pendingInitPromise = this.fetchAndSaveValues(
           user,
-          this.options.getPrefetchUsers(),
           this.options.getInitTimeoutMs(),
           this.initializeDiagnostics,
         )
@@ -356,28 +317,11 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
             }
           });
 
-        this.handleOptionalLogging();
         return this.pendingInitPromise;
       },
       () => {
         this.ready = true;
         this.initCalled = true;
-        return Promise.resolve();
-      },
-    );
-  }
-
-  public async prefetchUsers(users: StatsigUser[]): Promise<void> {
-    return this.errorBoundary.capture(
-      'prefetchUsers',
-      () => {
-        if (!users || users.length == 0) {
-          return;
-        }
-
-        return this.fetchAndSaveValues(null, users, 0);
-      },
-      () => {
         return Promise.resolve();
       },
     );
@@ -588,30 +532,18 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
         );
       }
       if (typeof eventName !== 'string' || eventName.length === 0) {
-        this.consoleLogger.error(
-          'Event not logged. No valid eventName passed.',
-        );
         return;
       }
       if (this.shouldTrimParam(eventName, MAX_VALUE_SIZE)) {
-        this.consoleLogger.info(
-          'eventName is too long, trimming to ' +
-            MAX_VALUE_SIZE +
-            ' characters.',
-        );
         eventName = eventName.substring(0, MAX_VALUE_SIZE);
       }
       if (
         typeof value === 'string' &&
         this.shouldTrimParam(value, MAX_VALUE_SIZE)
       ) {
-        this.consoleLogger.info(
-          'value is too long, trimming to ' + MAX_VALUE_SIZE + '.',
-        );
         value = value.substring(0, MAX_VALUE_SIZE);
       }
       if (this.shouldTrimParam(metadata, MAX_OBJ_SIZE)) {
-        this.consoleLogger.info('metadata is too big. Dropping the metadata.');
         metadata = { error: 'not logged due to size too large' };
       }
       const event = new LogEvent(eventName);
@@ -644,15 +576,12 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
         this.identity.updateUser(this.normalizeUser(user));
 
         const userCacheKey = this.getCurrentUserCacheKey();
-        const isUserPrefetched = Boolean(
-          this.prefetchedUsersByCacheKey[userCacheKey],
-        );
-        const cachedTime = this.store.updateUser(isUserPrefetched);
+        const cachedTime = this.store.updateUser(false);
         this.logger.resetDedupeKeys();
 
         if (
           cachedTime != null &&
-          (isUserPrefetched || this.isCacheValidForFetchMode(cachedTime))
+          (this.isCacheValidForFetchMode(cachedTime))
         ) {
           fireCompletionCallback(true, null);
           return Promise.resolve(true);
@@ -712,118 +641,7 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
           this.handleAppStateChange.bind(this),
         );
       }
-      StatsigLocalStorage.cleanup();
     });
-  }
-
-  /**
-   * Stores a local gate override
-   * @param gateName the gate to override
-   * @param value the value to override the gate to
-   */
-  public overrideGate(gateName: string, value: boolean): void {
-    this.errorBoundary.swallow('overrideGate', () => {
-      this.ensureStoreLoaded();
-      this.store.overrideGate(gateName, value);
-    });
-  }
-
-  /**
-   * Stores a local config override
-   * @param configName the config to override
-   * @param value the json value to override the config to
-   */
-  public overrideConfig(configName: string, value: Record<string, any>): void {
-    this.errorBoundary.swallow('overrideConfig', () => {
-      this.ensureStoreLoaded();
-      this.store.overrideConfig(configName, value);
-    });
-  }
-
-  /**
-   * Stores a local layer override
-   * @param layerName the layer to override
-   * @param value the json value to override the config to
-   */
-  public overrideLayer(layerName: string, value: Record<string, any>): void {
-    this.errorBoundary.swallow('overrideLayer', () => {
-      this.ensureStoreLoaded();
-      this.store.overrideLayer(layerName, value);
-    });
-  }
-
-  /**
-   * Removes the given gate override
-   * @param gateName
-   */
-  public removeGateOverride(gateName?: string): void {
-    this.errorBoundary.swallow('removeGateOverride', () => {
-      this.ensureStoreLoaded();
-      this.store.removeGateOverride(gateName);
-    });
-  }
-
-  /**
-   * Removes the given config override
-   * @param configName
-   */
-  public removeConfigOverride(configName?: string): void {
-    this.errorBoundary.swallow('removeConfigOverride', () => {
-      this.ensureStoreLoaded();
-      this.store.removeConfigOverride(configName);
-    });
-  }
-
-  /**
-   * Removes the given layer override
-   * @param layerName
-   */
-  public removeLayerOverride(layerName?: string): void {
-    this.errorBoundary.swallow('removeLayerOverride', () => {
-      this.ensureStoreLoaded();
-      this.store.removeLayerOverride(layerName);
-    });
-  }
-
-  /**
-   * @deprecated - use removeGateOverride or removeConfig override
-   * Removes the given gate override
-   * @param gateName
-   */
-  public removeOverride(gateName?: string): void {
-    this.errorBoundary.swallow('removeOverride', () => {
-      this.ensureStoreLoaded();
-      this.store.removeGateOverride(gateName);
-    });
-  }
-
-  /**
-   * @deprecated - use getAllOverrides to get gate and config overrides
-   * @returns Gate overrides
-   */
-  public getOverrides(): Record<string, any> {
-    return this.errorBoundary.capture(
-      'getOverrides',
-      () => {
-        this.ensureStoreLoaded();
-        return this.store.getAllOverrides().gates;
-      },
-      () => ({}),
-    );
-  }
-
-  /**
-   * @returns The local gate and config overrides
-   */
-  public getAllOverrides(): StatsigOverrides {
-    return this.errorBoundary.capture(
-      'getAllOverrides',
-      () => {
-        this.ensureStoreLoaded();
-        return this.store.getAllOverrides();
-      },
-      () => ({ gates: {}, configs: {}, layers: {} }),
-    );
   }
 
   /**
@@ -841,62 +659,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
     return this.initCalled;
   }
 
-  // All methods below are for the statsig react native SDK internal usage only!
-  public setSDKPackageInfo(sdkPackageInfo?: _SDKPackageInfo) {
-    if (sdkPackageInfo != null) {
-      this.identity.setSDKPackageInfo(sdkPackageInfo);
-      this.errorBoundary.setStatsigMetadata(this.getStatsigMetadata());
-    }
-  }
-
-  public static setAsyncStorage(asyncStorage?: AsyncStorage | null): void {
-    if (asyncStorage != null) {
-      StatsigAsyncStorage.asyncStorage = asyncStorage;
-    }
-  }
-
-  public static setReactNativeUUID(uuid?: UUID | null): void {
-    if (uuid != null) {
-      StatsigClient.reactNativeUUID = uuid;
-    }
-  }
-
-  public setAppState(appState?: AppState | null): void {
-    if (appState != null) {
-      this.appState = appState;
-    }
-  }
-
-  public setNativeModules(nativeModules?: NativeModules | null): void {
-    if (nativeModules != null) {
-      this.identity.setNativeModules(nativeModules);
-    }
-  }
-
-  public setPlatform(platform?: Platform | null): void {
-    if (platform != null) {
-      this.identity.setPlatform(platform);
-    }
-  }
-
-  public setRNDeviceInfo(deviceInfo?: DeviceInfo | null): void {
-    if (deviceInfo != null) {
-      this.identity.setRNDeviceInfo(deviceInfo);
-    }
-  }
-
-  public setExpoConstants(expoConstants?: ExpoConstants | null): void {
-    if (expoConstants != null) {
-      this.identity.setExpoConstants(expoConstants);
-    }
-  }
-
-  public setExpoDevice(expoDevice?: ExpoDevice | null): void {
-    if (expoDevice != null) {
-      this.identity.setExpoDevice(expoDevice);
-    }
-  }
-
   private isCacheValidForFetchMode(cachedTime: number): boolean {
     if (this.options.getFetchMode() !== 'cache-or-network') {
       return false;
@@ -904,67 +666,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
 
     // Only valid if the cache was during this session
     return cachedTime > this.startTime;
-  }
-
-  private handleOptionalLogging(): void {
-    const isErrorLoggingDisabled = this.options.getDisableErrorLogging();
-    const isAutoMetricsLoggingDisabled =
-      this.options.getDisableAutoMetricsLogging();
-
-    if (isErrorLoggingDisabled && isAutoMetricsLoggingDisabled) {
-      return;
-    }
-
-    if (
-      this.optionalLoggingSetup ||
-      typeof window === 'undefined' ||
-      !window ||
-      !window.addEventListener
-    ) {
-      return;
-    }
-
-    const user = this.identity.getUser();
-    if (!isErrorLoggingDisabled) {
-      window.addEventListener('error', (e) => {
-        let errorObj = e.error;
-        if (errorObj != null && typeof errorObj === 'object') {
-          try {
-            errorObj = JSON.stringify(errorObj);
-          } catch (e) {}
-        }
-        this.logger.logAppError(user, e.message ?? '', {
-          filename: e.filename,
-          lineno: e.lineno,
-          colno: e.colno,
-          error_obj: errorObj,
-        });
-      });
-    }
-
-    if (!isAutoMetricsLoggingDisabled) {
-      if (
-        typeof document === 'undefined' ||
-        !document ||
-        typeof setTimeout === 'undefined' ||
-        !setTimeout
-      ) {
-        return;
-      }
-
-      const work = () => {
-        setTimeout(() => {
-          this.logger.logAppMetrics(user);
-        }, 1000);
-      };
-
-      if (document.readyState === 'complete') {
-        work();
-      } else {
-        window.addEventListener('load', () => work());
-      }
-    }
-    this.optionalLoggingSetup = true;
   }
 
   private handleAppStateChange(nextAppState: AppStateStatus): void {
@@ -1026,22 +727,12 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
       return {};
     }
     if (this.shouldTrimParam(user.userID ?? null, MAX_VALUE_SIZE)) {
-      this.consoleLogger.info(
-        'User ID is too large, trimming to ' + MAX_VALUE_SIZE + 'characters',
-      );
       user.userID = user.userID?.toString().substring(0, MAX_VALUE_SIZE);
     }
     if (this.shouldTrimParam(user, MAX_OBJ_SIZE)) {
       user.custom = {};
       if (this.shouldTrimParam(user, MAX_OBJ_SIZE)) {
-        this.consoleLogger.info(
-          'User object is too large, only keeping the user ID.',
-        );
         user = { userID: user.userID };
-      } else {
-        this.consoleLogger.info(
-          'User object is too large, dropping the custom property.',
-        );
       }
     }
     return user;
@@ -1064,33 +755,19 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
 
   private async fetchAndSaveValues(
     user: StatsigUser | null,
-    prefetchUsers: StatsigUser[] = [],
     timeout: number = this.options.getInitTimeoutMs(),
     diagnostics?: Diagnostics,
   ): Promise<void> {
-    if (prefetchUsers.length > 5) {
-      this.consoleLogger.info('Cannot prefetch more than 5 users.');
-    }
-
-    const keyedPrefetchUsers = this.normalizePrefetchUsers(prefetchUsers)
-      .slice(0, 5)
-      .reduce((acc, curr) => {
-        acc[getUserCacheKey(curr)] = curr;
-        return acc;
-      }, {} as Record<string, StatsigUser>);
 
     let sinceTime: number | null = null;
-    if (prefetchUsers.length === 0) {
-      sinceTime = this.store.getLastUpdateTime(user);
-    }
+    sinceTime = this.store.getLastUpdateTime(user);
 
     return this.network
       .fetchValues(
         user,
         sinceTime,
         timeout,
-        prefetchUsers.length === 0 ? diagnostics : undefined,
-        prefetchUsers.length > 0 ? keyedPrefetchUsers : undefined,
+        diagnostics,
       )
       .eventually((json) => {
         if (json?.has_updates) {
@@ -1109,11 +786,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
           } else if (json?.is_no_content) {
             this.store.setEvaluationReason(EvaluationReason.NetworkNotModified);
           }
-
-          this.prefetchedUsersByCacheKey = {
-            ...this.prefetchedUsersByCacheKey,
-            ...keyedPrefetchUsers,
-          };
           diagnostics?.mark(
             DiagnosticsKey.INITIALIZE,
             DiagnosticsEvent.END,
@@ -1272,9 +944,5 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
       '',
       this.getEvalutionDetailsForError(),
     );
-  }
-
-  private fireAndForgetPrefechUsers() {
-    this.prefetchUsers(this.options.getPrefetchUsers());
   }
 }

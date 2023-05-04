@@ -1,8 +1,4 @@
-import { sha256 } from 'js-sha256';
 import { StatsigUser } from '../StatsigUser';
-import { Base64 } from './Base64';
-
-const hashLookupTable: Record<string, string> = {};
 
 export function SimpleHash(value: string): string {
   var hash = 0;
@@ -15,15 +11,7 @@ export function SimpleHash(value: string): string {
 }
 
 export function getHashValue(value: string): string {
-  const seen = hashLookupTable[value];
-  if (seen) {
-    return seen;
-  }
-
-  const buffer = sha256.create().update(value).arrayBuffer();
-  const hash = Base64.encodeArrayBuffer(buffer);
-  hashLookupTable[value] = hash;
-  return hash;
+  return SimpleHash(value);
 }
 
 export function getUserCacheKey(user: StatsigUser | null): string {
@@ -36,12 +24,5 @@ export function getUserCacheKey(user: StatsigUser | null): string {
     }
   }
 
-  const seen = hashLookupTable[key];
-  if (seen) {
-    return seen;
-  }
-
-  const hash = SimpleHash(key);
-  hashLookupTable[key] = hash;
-  return hash;
+  return SimpleHash(key);
 }
