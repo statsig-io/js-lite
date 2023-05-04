@@ -58,8 +58,6 @@ type StatsigMetadata = {
 export default class Identity {
   private user: StatsigUser | null;
   private statsigMetadata: StatsigMetadata;
-  private platform: Platform | null = null;
-  private nativeModules: NativeModules | null = null;
   private sdkType: string = 'js-client';
   private sdkVersion: string;
 
@@ -115,36 +113,6 @@ export default class Identity {
     this.user = user;
   }
 
-  public setSDKPackageInfo(SDKPackageInfo: _SDKPackageInfo): void {
-    this.sdkType = SDKPackageInfo.sdkType;
-    this.sdkVersion = SDKPackageInfo.sdkVersion;
-  }
-
-  public setPlatform(platform: Platform): void {
-    this.platform = platform;
-    this.updateMetadataFromNativeModules();
-  }
-
-  public setNativeModules(nativeModules: NativeModules): void {
-    this.nativeModules = nativeModules;
-    this.updateMetadataFromNativeModules();
-  }
-
-  private updateMetadataFromNativeModules(): void {
-    if (this.platform == null || this.nativeModules == null) {
-      return;
-    }
-
-    if (this.platform.OS?.toLocaleLowerCase() === 'android') {
-      this.statsigMetadata.locale =
-        this.nativeModules.I18nManager?.localeIdentifier;
-    } else if (this.platform.OS?.toLocaleLowerCase() === 'ios') {
-      this.statsigMetadata.locale =
-        this.nativeModules.SettingsManager?.settings?.AppleLocale ||
-        this.nativeModules.SettingsManager?.settings?.AppleLanguages[0];
-    }
-  }
-
   private getUUID(): string {
     let uuid = '';
     for (let i = 0; i < 32; i++) {
@@ -161,25 +129,5 @@ export default class Identity {
       }
     }
     return uuid;
-  }
-
-  public setRNDeviceInfo(deviceInfo: DeviceInfo): void {
-    this.statsigMetadata.appVersion = deviceInfo.getVersion() ?? ''; // e.g. 1.0.1
-    this.statsigMetadata.systemVersion = deviceInfo.getSystemVersion() ?? ''; // Android: "4.0.3"; iOS: "12.3.1"
-    this.statsigMetadata.systemName = deviceInfo.getSystemName() ?? ''; // e.g. Android, iOS, iPadOS
-    this.statsigMetadata.deviceModelName = deviceInfo.getModel() ?? ''; // e.g. Pixel 2, iPhone XS
-    this.statsigMetadata.deviceModel = deviceInfo.getDeviceId() ?? ''; // e.g. iPhone7,2
-  }
-
-  public setExpoConstants(expoConstants: ExpoConstants): void {
-    this.statsigMetadata.appVersion =
-      expoConstants.nativeAppVersion ?? expoConstants.nativeBuildVersion ?? ''; // e.g. 1.0.1
-  }
-
-  public setExpoDevice(expoDevice: ExpoDevice): void {
-    this.statsigMetadata.systemVersion = expoDevice.osVersion ?? ''; // Android: "4.0.3"; iOS: "12.3.1"
-    this.statsigMetadata.systemName = expoDevice.osName ?? ''; // e.g. Android, iOS, iPadOS
-    this.statsigMetadata.deviceModelName = expoDevice.modelName ?? ''; // e.g. Pixel 2, iPhone XS
-    this.statsigMetadata.deviceModel = expoDevice.modelId ?? ''; // e.g. iPhone7,2
   }
 }

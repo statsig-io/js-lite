@@ -1,5 +1,3 @@
-import { StatsigUser } from './StatsigUser';
-
 const DEFAULT_FEATURE_GATE_API = 'https://featuregates.org/v1/';
 const DEFAULT_EVENT_LOGGING_API = 'https://events.statsigapi.net/v1/';
 
@@ -43,7 +41,6 @@ export type StatsigOptions = {
   logLevel?: LogLevel | null;
   ignoreWindowUndefined?: boolean;
   fetchMode?: FetchMode;
-  disableLocalOverrides?: boolean;
 };
 
 export enum LogLevel {
@@ -81,7 +78,6 @@ export default class StatsigSDKOptions {
   private logLevel: LogLevel;
   private ignoreWindowUndefined: boolean;
   private fetchMode: FetchMode;
-  private disableLocalOverrides: boolean;
 
   constructor(options?: StatsigOptions | null) {
     if (options == null) {
@@ -131,7 +127,6 @@ export default class StatsigSDKOptions {
     this.logLevel = options?.logLevel ?? LogLevel.NONE;
     this.ignoreWindowUndefined = options?.ignoreWindowUndefined ?? false;
     this.fetchMode = options.fetchMode ?? 'network-only';
-    this.disableLocalOverrides = options?.disableLocalOverrides ?? false;
   }
 
   getApi(): string {
@@ -212,10 +207,6 @@ export default class StatsigSDKOptions {
 
   getFetchMode(): FetchMode {
     return this.fetchMode;
-  }
-
-  getDisableLocalOverrides(): boolean {
-    return this.disableLocalOverrides;
   }
 
   private normalizeNumberInput(

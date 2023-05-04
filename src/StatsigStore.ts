@@ -1,6 +1,6 @@
 import DynamicConfig, { OnDefaultValueFallback } from './DynamicConfig';
 import Layer, { LogParameterFunction } from './Layer';
-import { IHasStatsigInternal, StatsigOverrides } from './StatsigClient';
+import { IHasStatsigInternal } from './StatsigClient';
 import BootstrapValidator from './utils/BootstrapValidator';
 import { StatsigUser } from './StatsigUser';
 import {
@@ -85,12 +85,6 @@ const MAX_USER_VALUE_CACHED = 10;
 
 export default class StatsigStore {
   private sdkInternal: IHasStatsigInternal;
-
-  private overrides: StatsigOverrides = {
-    gates: {},
-    configs: {},
-    layers: {},
-  };
 
   private loaded: boolean;
   private values: Record<string, UserCacheValues | undefined>;
@@ -417,24 +411,11 @@ export default class StatsigStore {
       secondary_exposures: [],
     };
     let details: EvaluationDetails;
-    if (!ignoreOverrides && this.overrides.gates[gateName] != null) {
-      gateValue = {
-        name: gateName,
-        value: this.overrides.gates[gateName],
-        rule_id: 'override',
-        secondary_exposures: [],
-      };
-      details = this.getEvaluationDetails(
-        false,
-        EvaluationReason.LocalOverride,
-      );
-    } else {
-      let value = this.userValues?.feature_gates[gateNameHash];
+    let value = this.userValues?.feature_gates[gateNameHash];
       if (value) {
         gateValue = value;
       }
       details = this.getEvaluationDetails(value != null);
-    }
 
     return { evaluationDetails: details, gate: gateValue };
   }
@@ -446,23 +427,7 @@ export default class StatsigStore {
     const configNameHash = getHashValue(configName);
     let configValue: DynamicConfig;
     let details: EvaluationDetails;
-    if (!ignoreOverrides && this.overrides.configs[configName] != null) {
-      details = this.getEvaluationDetails(
-        false,
-        EvaluationReason.LocalOverride,
-      );
-      configValue = new DynamicConfig(
-        configName,
-        this.overrides.configs[configName],
-        'override',
-        details,
-        [],
-        '',
-        this.makeOnConfigDefaultValueFallback(
-          this.sdkInternal.getCurrentUser(),
-        ),
-      );
-    } else if (this.userValues?.dynamic_configs[configNameHash] != null) {
+    if (this.userValues?.dynamic_configs[configNameHash] != null) {
       const rawConfigValue = this.userValues?.dynamic_configs[configNameHash];
       details = this.getEvaluationDetails(true);
       configValue = this.createDynamicConfig(
@@ -483,26 +448,9 @@ export default class StatsigStore {
     keepDeviceValue: boolean = false,
     ignoreOverrides: boolean = false,
   ): DynamicConfig {
-    let exp: DynamicConfig;
-    let details: EvaluationDetails;
-    if (!ignoreOverrides && this.overrides.configs[expName] != null) {
-      details = this.getEvaluationDetails(
-        false,
-        EvaluationReason.LocalOverride,
-      );
-      exp = new DynamicConfig(
-        expName,
-        this.overrides.configs[expName],
-        'override',
-        details,
-      );
-    } else {
-      const latestValue = this.getLatestValue(expName, 'dynamic_configs');
-      details = this.getEvaluationDetails(latestValue != null);
-      exp = this.createDynamicConfig(expName, latestValue, details);
-    }
-
-    return exp;
+    const latestValue = this.getLatestValue(expName, 'dynamic_configs');
+    const details = this.getEvaluationDetails(latestValue != null);
+    return this.createDynamicConfig(expName, latestValue, details);
   }
 
   public getLayer(
@@ -510,20 +458,6 @@ export default class StatsigStore {
     layerName: string,
     keepDeviceValue: boolean,
   ): Layer {
-    if (this.overrides.layers[layerName] != null) {
-      const details = this.getEvaluationDetails(
-        false,
-        EvaluationReason.LocalOverride,
-      );
-      return Layer._create(
-        layerName,
-        this.overrides.layers[layerName] ?? {},
-        'override',
-        details,
-        logParameterFunction,
-      );
-    }
-
     const latestValue = this.getLatestValue(layerName, 'layer_configs');
     const details = this.getEvaluationDetails(latestValue != null);
 

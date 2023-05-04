@@ -1,7 +1,7 @@
 import DynamicConfig from './DynamicConfig';
 import { StatsigUninitializedError } from './Errors';
 import Layer from './Layer';
-import StatsigClient, { StatsigOverrides } from './StatsigClient';
+import StatsigClient from './StatsigClient';
 import { StatsigOptions } from './StatsigSDKOptions';
 import { EvaluationDetails, EvaluationReason } from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
@@ -11,7 +11,6 @@ export { default as Layer } from './Layer';
 export {
   default as StatsigClient,
   IStatsig,
-  StatsigOverrides,
 } from './StatsigClient';
 export type {
   AppState,

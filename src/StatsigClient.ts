@@ -88,12 +88,6 @@ export interface IHasStatsigInternal {
   getSDKVersion(): string;
 }
 
-export type StatsigOverrides = {
-  gates: Record<string, boolean>;
-  configs: Record<string, Record<string, any>>;
-  layers: Record<string, Record<string, any>>;
-};
-
 export default class StatsigClient implements IHasStatsigInternal, IStatsig {
   // RN dependencies
   private appState: AppState | null = null;
