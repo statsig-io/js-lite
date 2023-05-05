@@ -3,7 +3,7 @@ const TerserPlugin = require('terser-webpack-plugin');
 const CircularDependencyPlugin = require('circular-dependency-plugin');
 
 module.exports = {
-  entry: './src/index.ts',
+  entry: "./src/index.ts",
   mode: 'production',
   target: 'web',
   module: {
@@ -16,7 +16,7 @@ module.exports = {
     ],
   },
   resolve: {
-    extensions: ['.tsx', '.ts', '.js'],
+    extensions: ['.ts', '.js'],
   },
   output: {
     filename: 'statsig-prod-web-sdk.js',
@@ -24,8 +24,6 @@ module.exports = {
       type: 'umd',
       name: {
         root: 'statsig',
-        amd: 'statsig',
-        commonjs: 'statsig',
       },
     },
     path: path.resolve(__dirname, 'build'),
@@ -42,20 +40,20 @@ module.exports = {
       failOnError: true,
       allowAsyncCycles: false,
       cwd: process.cwd(),
-    }),
+    })
   ],
   optimization: {
+    minimize: true,
     minimizer: [
       new TerserPlugin({
-        extractComments: false,
+        minify: TerserPlugin.uglifyJsMinify,
         terserOptions: {
-          compress: {
-            drop_console: true,
+          mangle: {
+            properties: {
+              reserved: ['driveTo'],
+            },
           },
-          format: {
-            comments: false,
-          },
-        },
+        }
       }),
     ],
   },

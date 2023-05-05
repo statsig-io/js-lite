@@ -1,47 +1,8 @@
-import { _SDKPackageInfo } from './StatsigClient';
 import { StatsigUser } from './StatsigUser';
 import { STATSIG_STABLE_ID_KEY } from './utils/Constants';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 
 import { version as SDKVersion } from './SDKVersion';
-
-export type DeviceInfo = {
-  getVersion(): string | null;
-  getSystemVersion(): string | null;
-  getSystemName(): string | null;
-  getModel(): string | null;
-  getDeviceId(): string | null;
-};
-
-export type ExpoConstants = {
-  nativeAppVersion: string | null;
-  nativeBuildVersion: string | null;
-};
-
-export type ExpoDevice = {
-  osVersion: string | null;
-  osName: string | null;
-  modelName: string | null;
-  modelId: string | null;
-};
-
-export type NativeModules = {
-  I18nManager?: {
-    localeIdentifier: string;
-  } | null;
-  SettingsManager?: {
-    settings: {
-      AppleLocale: string | null;
-      AppleLanguages: string[];
-    } | null;
-  } | null;
-};
-
-export type Platform = {
-  OS?: {
-    toLocaleLowerCase: () => string;
-  } | null;
-};
 
 type StatsigMetadata = {
   sdkType: string;

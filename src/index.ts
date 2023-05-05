@@ -12,24 +12,7 @@ export {
   default as StatsigClient,
   IStatsig,
 } from './StatsigClient';
-export type {
-  AppState,
-  AppStateEvent,
-  AppStateStatus,
-  _SDKPackageInfo as _SDKPackageInfo,
-} from './StatsigClient';
-export type {
-  DeviceInfo,
-  ExpoConstants,
-  ExpoDevice,
-  NativeModules,
-  Platform,
-} from './StatsigIdentity';
 export { StatsigEnvironment, StatsigOptions } from './StatsigSDKOptions';
-export type {
-  InitCompletionCallback,
-  UpdateUserCompletionCallback,
-} from './StatsigSDKOptions';
 export { EvaluationReason } from './StatsigStore';
 export type { EvaluationDetails } from './StatsigStore';
 export { StatsigUser } from './StatsigUser';
@@ -66,70 +49,18 @@ export default class Statsig {
     return Statsig.getClientX().checkGate(gateName, ignoreOverrides);
   }
 
-  public static checkGateWithExposureLoggingDisabled(
-    gateName: string,
-    ignoreOverrides: boolean = false,
-  ): boolean {
-    return Statsig.getClientX().checkGateWithExposureLoggingDisabled(
-      gateName,
-      ignoreOverrides,
-    );
-  }
-
-  public static manuallyLogGateExposure(gateName: string) {
-    Statsig.getClientX().logGateExposure(gateName);
-  }
-
   public static getConfig(
     configName: string,
-    ignoreOverrides: boolean = false,
   ): DynamicConfig {
-    return Statsig.getClientX().getConfig(configName, ignoreOverrides);
-  }
-
-  public static getConfigWithExposureLoggingDisabled(
-    configName: string,
-    ignoreOverrides: boolean = false,
-  ): DynamicConfig {
-    return Statsig.getClientX().getConfigWithExposureLoggingDisabled(
-      configName,
-      ignoreOverrides,
-    );
-  }
-
-  public static manuallyLogConfigExposure(configName: string) {
-    Statsig.getClientX().logConfigExposure(configName);
+    return Statsig.getClientX().getConfig(configName);
   }
 
   public static getExperiment(
     experimentName: string,
-    keepDeviceValue: boolean = false,
-    ignoreOverrides: boolean = false,
   ): DynamicConfig {
-    return Statsig.getClientX().getExperiment(
+    return Statsig.getClientX().getConfig(
       experimentName,
-      keepDeviceValue,
-      ignoreOverrides,
     );
-  }
-
-  public static getExperimentWithExposureLoggingDisabled(
-    experimentName: string,
-    keepDeviceValue: boolean = false,
-    ignoreOverrides: boolean = false,
-  ): DynamicConfig {
-    return Statsig.getClientX().getExperimentWithExposureLoggingDisabled(
-      experimentName,
-      keepDeviceValue,
-      ignoreOverrides,
-    );
-  }
-
-  public static manuallyLogExperimentExposure(
-    configName: string,
-    keepDeviceValue: boolean = false,
-  ) {
-    Statsig.getClientX().logExperimentExposure(configName, keepDeviceValue);
   }
 
   public static getLayer(
@@ -137,28 +68,6 @@ export default class Statsig {
     keepDeviceValue: boolean = false,
   ): Layer {
     return Statsig.getClientX().getLayer(layerName, keepDeviceValue);
-  }
-
-  public static getLayerWithExposureLoggingDisabled(
-    layerName: string,
-    keepDeviceValue: boolean = false,
-  ): Layer {
-    return Statsig.getClientX().getLayerWithExposureLoggingDisabled(
-      layerName,
-      keepDeviceValue,
-    );
-  }
-
-  public static manuallyLogLayerParameterExposure(
-    layerName: string,
-    parameterName: string,
-    keepDeviceValue: boolean = false,
-  ) {
-    Statsig.getClientX().logLayerParameterExposure(
-      layerName,
-      parameterName,
-      keepDeviceValue,
-    );
   }
 
   public static logEvent(

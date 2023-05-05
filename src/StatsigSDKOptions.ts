@@ -8,18 +8,6 @@ export type StatsigEnvironment = {
   [key: string]: string | undefined;
 };
 
-export type InitCompletionCallback = (
-  initDurationMs: number,
-  success: boolean,
-  message: string | null,
-) => void;
-
-export type UpdateUserCompletionCallback = (
-  durationMs: number,
-  success: boolean,
-  message: string | null,
-) => void;
-
 export type StatsigOptions = {
   api?: string;
   disableCurrentPageLogging?: boolean;
@@ -35,19 +23,10 @@ export type StatsigOptions = {
   initializeValues?: Record<string, any> | null;
   eventLoggingApi?: string;
   disableLocalStorage?: boolean;
-  initCompletionCallback?: InitCompletionCallback | null;
-  updateUserCompletionCallback?: UpdateUserCompletionCallback | null;
   disableDiagnosticsLogging?: boolean;
-  logLevel?: LogLevel | null;
   ignoreWindowUndefined?: boolean;
   fetchMode?: FetchMode;
 };
-
-export enum LogLevel {
-  'NONE',
-  'INFO',
-  'DEBUG',
-}
 
 export type FetchMode = 'cache-or-network' | 'network-only';
 
@@ -72,10 +51,7 @@ export default class StatsigSDKOptions {
   private initializeValues: Record<string, any> | null;
   private eventLoggingApi: string;
   private disableLocalStorage: boolean;
-  private initCompletionCallback: InitCompletionCallback | null;
-  private updateCompletionCallback: UpdateUserCompletionCallback | null;
   private disableDiagnosticsLogging: boolean;
-  private logLevel: LogLevel;
   private ignoreWindowUndefined: boolean;
   private fetchMode: FetchMode;
 
@@ -120,11 +96,7 @@ export default class StatsigSDKOptions {
       ? eventLoggingApi
       : eventLoggingApi + '/';
     this.disableLocalStorage = options.disableLocalStorage ?? false;
-    this.initCompletionCallback = options.initCompletionCallback ?? null;
-    this.updateCompletionCallback =
-      options.updateUserCompletionCallback ?? null;
     this.disableDiagnosticsLogging = options.disableDiagnosticsLogging ?? false;
-    this.logLevel = options?.logLevel ?? LogLevel.NONE;
     this.ignoreWindowUndefined = options?.ignoreWindowUndefined ?? false;
     this.fetchMode = options.fetchMode ?? 'network-only';
   }
@@ -185,20 +157,8 @@ export default class StatsigSDKOptions {
     return this.disableLocalStorage;
   }
 
-  getInitCompletionCallback(): InitCompletionCallback | null {
-    return this.initCompletionCallback;
-  }
-
-  getUpdateUserCompletionCallback(): UpdateUserCompletionCallback | null {
-    return this.updateCompletionCallback;
-  }
-
   getDisableDiagnosticsLogging(): boolean {
     return this.disableDiagnosticsLogging;
-  }
-
-  getLogLevel(): LogLevel {
-    return this.logLevel;
   }
 
   getIgnoreWindowUndefined(): boolean {

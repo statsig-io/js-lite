@@ -206,13 +206,10 @@ export default class StatsigStore {
   public async save(
     user: StatsigUser | null,
     jsonConfigs: Record<string, any>,
+    updateState: boolean = true,
   ): Promise<void> {
     const requestedUserCacheKey = getUserCacheKey(user);
-    const initResponse = jsonConfigs as APIInitializeDataWithDeltas;
-
-    if (initResponse.is_delta) {
-      return this.saveInitDeltas(user, jsonConfigs);
-    }
+    const initResponse = jsonConfigs as APIInitializeData;
 
     this.mergeInitializeResponseIntoUserMap(
       initResponse,
@@ -222,77 +219,16 @@ export default class StatsigStore {
       (userValues) => userValues,
     );
 
-    const userValues = this.values[requestedUserCacheKey];
-    if (
-      userValues &&
-      requestedUserCacheKey &&
-      requestedUserCacheKey == this.userCacheKey
-    ) {
-      this.userValues = userValues;
-      this.reason = EvaluationReason.Network;
-    }
-
-    this.values = await this.writeValuesToStorage(this.values);
-  }
-
-  /**
-   * Persists the init values to storage, but DOES NOT update the state of the store.
-   */
-  public async saveWithoutUpdatingClientState(
-    user: StatsigUser | null,
-    jsonConfigs: Record<string, any>,
-  ): Promise<void> {
-    const requestedUserCacheKey = getUserCacheKey(user);
-    const initResponse =
-      jsonConfigs as APIInitializeDataWithDeltasWithPrefetchedUsers;
-    const copiedValues: Record<string, UserCacheValues | undefined> =
-      JSON.parse(JSON.stringify(this.values));
-
-    this.mergeInitializeResponseIntoUserMap(
-      initResponse,
-      copiedValues,
-      requestedUserCacheKey,
-      user,
-      (userValues) => userValues,
-    );
-
-    await this.writeValuesToStorage(copiedValues);
-  }
-
-  public async saveInitDeltas(
-    user: StatsigUser | null,
-    jsonConfigs: Record<string, any>,
-  ): Promise<void> {
-    const requestedUserCacheKey = getUserCacheKey(user);
-    const initResponse =
-      jsonConfigs as APIInitializeDataWithDeltasWithPrefetchedUsers;
-
-    this.mergeInitializeResponseIntoUserMap(
-      initResponse,
-      this.values,
-      requestedUserCacheKey,
-      user,
-      (deltas, key) => {
-        const baseValues = this.values[key] ?? this.getDefaultUserCacheValues();
-
-        return this.mergeUserCacheValues(baseValues, deltas);
-      },
-    );
-
-    const cacheKeys = Object.keys(initResponse.prefetched_user_values ?? {});
-    cacheKeys.forEach((userKey) => {
-      const user = this.values[userKey];
-      if (user) {
-        removeDeletedKeysFromUserValues(initResponse, user);
+    if (updateState) {
+      const userValues = this.values[requestedUserCacheKey];
+      if (
+        userValues &&
+        requestedUserCacheKey &&
+        requestedUserCacheKey == this.userCacheKey
+      ) {
+        this.userValues = userValues;
+        this.reason = EvaluationReason.Network;
       }
-    });
-
-    const userValues = this.values[requestedUserCacheKey];
-    if (userValues && requestedUserCacheKey == this.userCacheKey) {
-      removeDeletedKeysFromUserValues(initResponse, userValues);
-
-      this.userValues = userValues;
-      this.reason = EvaluationReason.Network;
     }
 
     this.values = await this.writeValuesToStorage(this.values);
@@ -422,7 +358,6 @@ export default class StatsigStore {
 
   public getConfig(
     configName: string,
-    ignoreOverrides: boolean = false,
   ): DynamicConfig {
     const configNameHash = getHashValue(configName);
     let configValue: DynamicConfig;
@@ -443,20 +378,9 @@ export default class StatsigStore {
     return configValue;
   }
 
-  public getExperiment(
-    expName: string,
-    keepDeviceValue: boolean = false,
-    ignoreOverrides: boolean = false,
-  ): DynamicConfig {
-    const latestValue = this.getLatestValue(expName, 'dynamic_configs');
-    const details = this.getEvaluationDetails(latestValue != null);
-    return this.createDynamicConfig(expName, latestValue, details);
-  }
-
   public getLayer(
     logParameterFunction: LogParameterFunction | null,
     layerName: string,
-    keepDeviceValue: boolean,
   ): Layer {
     const latestValue = this.getLatestValue(layerName, 'layer_configs');
     const details = this.getEvaluationDetails(latestValue != null);
@@ -580,19 +504,4 @@ export default class StatsigStore {
       );
     };
   }
-}
-
-function removeDeletedKeysFromUserValues(
-  initResponse: APIInitializeDataWithDeltasWithPrefetchedUsers,
-  userValues: UserCacheValues,
-) {
-  (initResponse.deleted_configs ?? []).forEach((key) => {
-    delete userValues.dynamic_configs[key];
-  });
-  (initResponse.deleted_gates ?? []).forEach((key) => {
-    delete userValues.feature_gates[key];
-  });
-  (initResponse.deleted_layers ?? []).forEach((key) => {
-    delete userValues.layer_configs[key];
-  });
 }

@@ -72,7 +72,6 @@ export default class StatsigNetwork {
       prefetchUsers,
       statsigMetadata: this.sdkInternal.getStatsigMetadata(),
       sinceTime: sinceTime ?? undefined,
-      acceptsDeltas: true,
     };
 
     return this.postWithTimeout(
@@ -142,11 +141,9 @@ export default class StatsigNetwork {
             'network_request',
             res.status,
           );
-
-          const is_delta = (res?.data?.is_delta as boolean | undefined) ?? false;
           diagnostics?.addMetadata(
             'is_delta',
-            is_delta,
+            false,
           );
         }
         if (!res.ok) {

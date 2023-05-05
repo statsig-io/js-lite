@@ -30,40 +30,10 @@ import { now } from './utils/Timing';
 const MAX_VALUE_SIZE = 64;
 const MAX_OBJ_SIZE = 2048;
 
-export type AppStateEvent = 'change' | 'memoryWarning' | 'blur' | 'focus';
-export type AppStateStatus =
-  | 'active'
-  | 'background'
-  | 'inactive'
-  | 'unknown'
-  | 'extension';
-
-export type AppState = {
-  currentState: AppStateStatus;
-  addEventListener: (
-    event: AppStateEvent,
-    handler: (newState: AppStateStatus) => void,
-  ) => void;
-  removeEventListener: (
-    event: AppStateEvent,
-    handler: (newState: AppStateStatus) => void,
-  ) => void;
-};
-
-export type _SDKPackageInfo = {
-  sdkType: string;
-  sdkVersion: string;
-};
-
 export interface IStatsig {
   initializeAsync(): Promise<void>;
-  checkGate(gateName: string, ignoreOverrides?: boolean): boolean;
-  getConfig(configName: string, ignoreOverrides?: boolean): DynamicConfig;
-  getExperiment(
-    experimentName: string,
-    keepDeviceValue?: boolean,
-    ignoreOverrides?: boolean,
-  ): DynamicConfig;
+  checkGate(gateName: string): boolean;
+  getConfig(configName: string): DynamicConfig;
   logEvent(
     eventName: string,
     value?: string | number | null,
@@ -89,14 +59,10 @@ export interface IHasStatsigInternal {
 }
 
 export default class StatsigClient implements IHasStatsigInternal, IStatsig {
-  // RN dependencies
-  private appState: AppState | null = null;
-  private currentAppState: AppStateStatus | null = null;
 
   private ready: boolean;
   private initCalled: boolean = false;
   private pendingInitPromise: Promise<void> | null = null;
-  private optionalLoggingSetup: boolean = false;
   private startTime;
 
   private initializeDiagnostics: Diagnostics;
@@ -186,14 +152,10 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
     this.errorBoundary.setStatsigMetadata(this.getStatsigMetadata());
 
     if (this.options.getInitializeValues() != null) {
-      let cb = this.options.getInitCompletionCallback();
       this.ready = true;
       this.initCalled = true;
 
       setTimeout(() => this.delayedSetup(), 20);
-      if (cb) {
-        cb(now() - this.startTime, true, null);
-      }
     }
   }
 
@@ -209,35 +171,19 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
       'setInitializeValues',
       () => {
         this.store.bootstrap(initializeValues);
-        let cb = null;
         if (!this.ready) {
           // the sdk is usable and considered initialized when configured
           // with initializeValues
           this.ready = true;
           this.initCalled = true;
-
-          // only callback on the first time initialize values are set and the
-          // sdk is usable
-          cb = this.options.getInitCompletionCallback();
         }
         // we wont have access to window/document/localStorage if these run on the server
         // so try to run whenever this is called
         this.logger.sendSavedRequests();
-        if (cb) {
-          cb(now() - this.startTime, true, null);
-        }
       },
       () => {
         this.ready = true;
         this.initCalled = true;
-        const cb = this.options.getInitCompletionCallback();
-        if (cb) {
-          cb(
-            now() - this.startTime,
-            false,
-            'Caught an exception during setInitializeValues',
-          );
-        }
       },
     );
   }
@@ -258,18 +204,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
         );
         this.initCalled = true;
 
-        if (
-          this.appState &&
-          this.appState.addEventListener &&
-          typeof this.appState.addEventListener === 'function'
-        ) {
-          this.currentAppState = this.appState.currentState;
-          this.appState.addEventListener(
-            'change',
-            this.handleAppStateChange.bind(this),
-          );
-        }
-
         if (this.options.getLocalModeEnabled()) {
           return Promise.resolve();
         }
@@ -281,7 +215,7 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
           this.initializeDiagnostics,
         )
           .then(() => {
-            return { success: true, message: null };
+            return;
           })
           .catch((e) => {
             this.errorBoundary.logError(
@@ -290,12 +224,7 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
             );
             return { success: false, message: e.message };
           })
-          .then(({ success, message }) => {
-            const cb = this.options.getInitCompletionCallback();
-            if (cb) {
-              cb(now() - this.startTime, success, message);
-            }
-
+          .then(() => {
             return;
           })
           .finally(async () => {
@@ -358,26 +287,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
     );
   }
 
-  public checkGateWithExposureLoggingDisabled(
-    gateName: string,
-    ignoreOverrides: boolean = false,
-  ): boolean {
-    return this.errorBoundary.capture(
-      'checkGateWithExposureLoggingDisabled',
-      () => {
-        const result = this.checkGateImpl(gateName, ignoreOverrides);
-        return result.gate.value === true;
-      },
-      () => false,
-    );
-  }
-
-  public logGateExposure(gateName: string) {
-    this.errorBoundary.swallow('logGateExposure', () => {
-      this.logGateExposureImpl(gateName);
-    });
-  }
-
   /**
    * Checks the value of a config for the current user
    * @param {string} configName - the name of the config to get
@@ -392,86 +301,12 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
     return this.errorBoundary.capture(
       'getConfig',
       () => {
-        const result = this.getConfigImpl(configName, ignoreOverrides);
+        const result = this.getConfigImpl(configName);
         this.logConfigExposureImpl(configName, result);
         return result;
       },
       () => this.getEmptyConfig(configName),
     );
-  }
-
-  public getConfigWithExposureLoggingDisabled(
-    configName: string,
-    ignoreOverrides: boolean = false,
-  ): DynamicConfig {
-    return this.errorBoundary.capture(
-      'getConfig',
-      () => {
-        return this.getConfigImpl(configName, ignoreOverrides);
-      },
-      () => this.getEmptyConfig(configName),
-    );
-  }
-
-  public logConfigExposure(configName: string) {
-    this.errorBoundary.swallow('logConfigExposure', () => {
-      this.logConfigExposureImpl(configName);
-    });
-  }
-
-  /**
-   * Gets the experiment for a given user
-   * @param {string} experimentName - the name of the experiment to get
-   * @param {boolean} keepDeviceValue = false if this should use "sticky" values persisted in local storage
-   * @param {boolean} ignoreOverrides = false if this check should ignore local overrides
-   * @returns {DynamicConfig} - value of the experiment for the user, represented by a Dynamic Config object
-   * @throws Error if initialize() is not called first, or experimentName is not a string
-   */
-  public getExperiment(
-    experimentName: string,
-    keepDeviceValue: boolean = false,
-    ignoreOverrides: boolean = false,
-  ): DynamicConfig {
-    return this.errorBoundary.capture(
-      'getExperiment',
-      () => {
-        const result = this.getExperimentImpl(
-          experimentName,
-          keepDeviceValue,
-          ignoreOverrides,
-        );
-        this.logExperimentExposureImpl(experimentName, keepDeviceValue, result);
-        return result;
-      },
-      () => this.getEmptyConfig(experimentName),
-    );
-  }
-
-  public getExperimentWithExposureLoggingDisabled(
-    experimentName: string,
-    keepDeviceValue: boolean = false,
-    ignoreOverrides: boolean = false,
-  ): DynamicConfig {
-    return this.errorBoundary.capture(
-      'getExperimentWithExposureLoggingDisabled',
-      () => {
-        return this.getExperimentImpl(
-          experimentName,
-          keepDeviceValue,
-          ignoreOverrides,
-        );
-      },
-      () => this.getEmptyConfig(experimentName),
-    );
-  }
-
-  public logExperimentExposure(
-    experimentName: string,
-    keepDeviceValue: boolean,
-  ) {
-    this.errorBoundary.swallow('logExperimentExposure', () => {
-      this.logExperimentExposureImpl(experimentName, keepDeviceValue);
-    });
   }
 
   public getLayer(layerName: string, keepDeviceValue: boolean = false): Layer {
@@ -489,31 +324,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
     );
   }
 
-  public getLayerWithExposureLoggingDisabled(
-    layerName: string,
-    keepDeviceValue: boolean = false,
-  ): Layer {
-    return this.errorBoundary.capture(
-      'getLayerWithExposureLoggingDisabled',
-      () => {
-        return this.getLayerImpl(null, layerName, keepDeviceValue);
-      },
-      () =>
-        Layer._create(layerName, {}, '', this.getEvalutionDetailsForError()),
-    );
-  }
-
-  public logLayerParameterExposure(
-    layerName: string,
-    parameterName: string,
-    keepDeviceValue: boolean = false,
-  ) {
-    this.errorBoundary.swallow('logLayerParameterExposure', () => {
-      const layer = this.getLayerImpl(null, layerName, keepDeviceValue);
-      this.logLayerParameterExposureForLayer(layer, parameterName, true);
-    });
-  }
-
   public logEvent(
     eventName: string,
     value: string | number | null = null,
@@ -528,18 +338,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
       if (typeof eventName !== 'string' || eventName.length === 0) {
         return;
       }
-      if (this.shouldTrimParam(eventName, MAX_VALUE_SIZE)) {
-        eventName = eventName.substring(0, MAX_VALUE_SIZE);
-      }
-      if (
-        typeof value === 'string' &&
-        this.shouldTrimParam(value, MAX_VALUE_SIZE)
-      ) {
-        value = value.substring(0, MAX_VALUE_SIZE);
-      }
-      if (this.shouldTrimParam(metadata, MAX_OBJ_SIZE)) {
-        metadata = { error: 'not logged due to size too large' };
-      }
       const event = new LogEvent(eventName);
       event.setValue(value);
       event.setMetadata(metadata);
@@ -550,10 +348,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
 
   public async updateUser(user: StatsigUser | null): Promise<boolean> {
     const updateStartTime = Date.now();
-    let fireCompletionCallback: (
-      success: boolean,
-      error: string | null,
-    ) => void | null;
 
     return this.errorBoundary.capture(
       'updateUser',
@@ -562,31 +356,14 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
           throw new StatsigUninitializedError('Call initialize() first.');
         }
 
-        fireCompletionCallback = (success: boolean, error: string | null) => {
-          const cb = this.options.getUpdateUserCompletionCallback();
-          cb?.(Date.now() - updateStartTime, success, error);
-        };
-
         this.identity.updateUser(this.normalizeUser(user));
-
-        const userCacheKey = this.getCurrentUserCacheKey();
-        const cachedTime = this.store.updateUser(false);
         this.logger.resetDedupeKeys();
-
-        if (
-          cachedTime != null &&
-          (this.isCacheValidForFetchMode(cachedTime))
-        ) {
-          fireCompletionCallback(true, null);
-          return Promise.resolve(true);
-        }
 
         if (this.pendingInitPromise != null) {
           await this.pendingInitPromise;
         }
 
         if (this.options.getLocalModeEnabled()) {
-          fireCompletionCallback(true, null);
           return Promise.resolve(true);
         }
 
@@ -599,19 +376,13 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
 
         return this.pendingInitPromise
           .then(() => {
-            fireCompletionCallback(true, null);
             return Promise.resolve(true);
           })
           .catch((error) => {
-            fireCompletionCallback(false, `Failed to update user: ${error}`);
             return Promise.resolve(false);
           });
       },
       () => {
-        fireCompletionCallback?.(
-          false,
-          'Failed to update user. An unexpected error occured.',
-        );
         return Promise.resolve(false);
       },
     );
@@ -624,17 +395,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
   public shutdown(): void {
     this.errorBoundary.swallow('shutdown', () => {
       this.logger.shutdown();
-
-      if (
-        this.appState &&
-        this.appState.removeEventListener &&
-        typeof this.appState.removeEventListener === 'function'
-      ) {
-        this.appState.removeEventListener(
-          'change',
-          this.handleAppStateChange.bind(this),
-        );
-      }
     });
   }
 
@@ -653,51 +413,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
     return this.initCalled;
   }
 
-  private isCacheValidForFetchMode(cachedTime: number): boolean {
-    if (this.options.getFetchMode() !== 'cache-or-network') {
-      return false;
-    }
-
-    // Only valid if the cache was during this session
-    return cachedTime > this.startTime;
-  }
-
-  private handleAppStateChange(nextAppState: AppStateStatus): void {
-    if (
-      this.currentAppState === 'active' &&
-      nextAppState.match(/inactive|background/)
-    ) {
-      this.logger.flush(true);
-    } else if (
-      this.currentAppState?.match(/inactive|background/) &&
-      nextAppState === 'active'
-    ) {
-      this.logger.sendSavedRequests();
-    }
-    this.currentAppState = nextAppState;
-  }
-
-  private shouldTrimParam(
-    entity: string | number | object | null,
-    size: number,
-  ): boolean {
-    if (entity == null) return false;
-    if (typeof entity === 'string') return entity.length > size;
-    if (typeof entity === 'object') {
-      return JSON.stringify(entity).length > size;
-    }
-    if (typeof entity === 'number') return entity.toString().length > size;
-    return false;
-  }
-
-  private normalizePrefetchUsers(users: StatsigUser[] | null): StatsigUser[] {
-    if (users == null) {
-      return [];
-    }
-
-    return users.map((user) => this.normalizeUser(user));
-  }
-
   private normalizeUser(user: StatsigUser | null): StatsigUser {
     let userCopy: StatsigUser = {};
     try {
@@ -708,28 +423,11 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
       );
     }
 
-    userCopy = this.trimUserObjIfNeeded(userCopy);
     if (this.options.getEnvironment() != null) {
       // @ts-ignore
       userCopy.statsigEnvironment = this.options.getEnvironment();
     }
     return userCopy;
-  }
-
-  private trimUserObjIfNeeded(user: StatsigUser | null): StatsigUser {
-    if (user == null) {
-      return {};
-    }
-    if (this.shouldTrimParam(user.userID ?? null, MAX_VALUE_SIZE)) {
-      user.userID = user.userID?.toString().substring(0, MAX_VALUE_SIZE);
-    }
-    if (this.shouldTrimParam(user, MAX_OBJ_SIZE)) {
-      user.custom = {};
-      if (this.shouldTrimParam(user, MAX_OBJ_SIZE)) {
-        user = { userID: user.userID };
-      }
-    }
-    return user;
   }
 
   private ensureStoreLoaded(): void {
@@ -765,7 +463,7 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
       )
       .eventually((json) => {
         if (json?.has_updates) {
-          this.store.saveWithoutUpdatingClientState(user, json);
+          this.store.save(user, json, false);
         }
       })
       .then(async (json: Record<string, any>) => {
@@ -823,7 +521,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
 
   private getConfigImpl(
     configName: string,
-    ignoreOverrides: boolean,
   ): DynamicConfig {
     this.ensureStoreLoaded();
     if (typeof configName !== 'string' || configName.length === 0) {
@@ -832,53 +529,16 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
       );
     }
 
-    return this.store.getConfig(configName, ignoreOverrides);
+    return this.store.getConfig(configName);
   }
 
   private logConfigExposureImpl(configName: string, config?: DynamicConfig) {
     const isManualExposure = !config;
-    const localConfig = config ?? this.getConfigImpl(configName, false);
+    const localConfig = config ?? this.getConfigImpl(configName);
 
     this.logger.logConfigExposure(
       this.getCurrentUser(),
       configName,
-      localConfig.getRuleID(),
-      localConfig._getSecondaryExposures(),
-      localConfig.getEvaluationDetails(),
-      isManualExposure,
-    );
-  }
-
-  private getExperimentImpl(
-    experimentName: string,
-    keepDeviceValue: boolean,
-    ignoreOverrides: boolean,
-  ) {
-    this.ensureStoreLoaded();
-    if (typeof experimentName !== 'string' || experimentName.length === 0) {
-      throw new StatsigInvalidArgumentError(
-        'Must pass a valid string as the experimentName.',
-      );
-    }
-    return this.store.getExperiment(
-      experimentName,
-      keepDeviceValue,
-      ignoreOverrides,
-    );
-  }
-
-  private logExperimentExposureImpl(
-    experimentName: string,
-    keepDeviceValue: boolean,
-    config?: DynamicConfig,
-  ) {
-    const isManualExposure = !config;
-    const localConfig =
-      config ?? this.getExperimentImpl(experimentName, keepDeviceValue, false);
-
-    this.logger.logConfigExposure(
-      this.getCurrentUser(),
-      experimentName,
       localConfig.getRuleID(),
       localConfig._getSecondaryExposures(),
       localConfig.getEvaluationDetails(),
@@ -901,7 +561,6 @@ export default class StatsigClient implements IHasStatsigInternal, IStatsig {
     return this.store.getLayer(
       logParameterFunction,
       layerName,
-      keepDeviceValue,
     );
   }
 
