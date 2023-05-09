@@ -58,21 +58,9 @@ type APIInitializeData = {
   user_hash?: string;
 };
 
-type APIInitializeDataWithDeltas = APIInitializeData & {
-  deleted_configs?: string[];
-  deleted_gates?: string[];
-  deleted_layers?: string[];
-  is_delta?: boolean;
-};
-
 type APIInitializeDataWithPrefetchedUsers = APIInitializeData & {
   prefetched_user_values?: Record<string, APIInitializeData>;
 };
-
-type APIInitializeDataWithDeltasWithPrefetchedUsers =
-  APIInitializeDataWithDeltas & {
-    prefetched_user_values?: Record<string, APIInitializeDataWithDeltas>;
-  };
 
 type UserCacheValues = APIInitializeDataWithPrefetchedUsers & {
   evaluation_time?: number;

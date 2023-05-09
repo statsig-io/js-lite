@@ -1,7 +1,7 @@
 {
-  "name": "statsig-js",
-  "version": "4.33.6",
-  "description": "Statsig JavaScript client SDK for single user environments.",
+  "name": "statsig-js-lite",
+  "version": "1.0.0-beta.1",
+  "description": "A slimmed version of the Statsig JavaScript client SDK for single user environments.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -23,12 +23,12 @@
   "jsdelivr": "build/statsig-prod-web-sdk.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/statsig-io/js-client-sdk.git"
+    "url": "git+https://github.com/statsig-io/js-lite.git"
   },
   "author": "Statsig, Inc.",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/statsig-io/js-client-sdk/issues"
+    "url": "https://github.com/statsig-io/js-lite/issues"
   },
   "keywords": [
     "feature gate",

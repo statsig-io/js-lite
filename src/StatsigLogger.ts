@@ -15,7 +15,6 @@ const CONFIG_EXPOSURE_EVENT = INTERNAL_EVENT_PREFIX + 'config_exposure';
 const LAYER_EXPOSURE_EVENT = INTERNAL_EVENT_PREFIX + 'layer_exposure';
 const GATE_EXPOSURE_EVENT = INTERNAL_EVENT_PREFIX + 'gate_exposure';
 const LOG_FAILURE_EVENT = INTERNAL_EVENT_PREFIX + 'log_event_failed';
-const DIAGNOSTICS_EVENT = INTERNAL_EVENT_PREFIX + 'diagnostics';
 const DEFAULT_VALUE_WARNING =
   INTERNAL_EVENT_PREFIX + 'default_value_type_mismatch';
 
@@ -214,11 +213,11 @@ export default class StatsigLogger {
     this.log(configExposure);
   }
 
-  public logConfigDefaultValueFallback(
+  public logConfigDefaultValueFallback = (
     user: StatsigUser | null,
     message: string,
     metadata: object,
-  ): void {
+  ) => {
     const defaultValueEvent = makeLogEvent(
       DEFAULT_VALUE_WARNING,
       user,
@@ -228,7 +227,7 @@ export default class StatsigLogger {
     );
     this.log(defaultValueEvent);
     this.loggedErrors.add(message);
-  }
+  };
 
   public shutdown(): void {
     if (this.flushInterval) {

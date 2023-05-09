@@ -23,7 +23,6 @@ export type StatsigOptions = {
   initializeValues?: Record<string, any> | null;
   eventLoggingApi?: string;
   disableLocalStorage?: boolean;
-  disableDiagnosticsLogging?: boolean;
   ignoreWindowUndefined?: boolean;
   fetchMode?: FetchMode;
 };
@@ -51,7 +50,6 @@ export default class StatsigSDKOptions {
   readonly initializeValues: Record<string, any> | null;
   readonly eventLoggingApi: string;
   readonly disableLocalStorage: boolean;
-  readonly disableDiagnosticsLogging: boolean;
   readonly ignoreWindowUndefined: boolean;
   readonly fetchMode: FetchMode;
 
@@ -96,7 +94,6 @@ export default class StatsigSDKOptions {
       ? eventLoggingApi
       : eventLoggingApi + '/';
     this.disableLocalStorage = options.disableLocalStorage ?? false;
-    this.disableDiagnosticsLogging = options.disableDiagnosticsLogging ?? false;
     this.ignoreWindowUndefined = options?.ignoreWindowUndefined ?? false;
     this.fetchMode = options.fetchMode ?? 'network-only';
   }
