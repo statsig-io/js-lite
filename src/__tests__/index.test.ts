@@ -145,15 +145,15 @@ describe('Verify behavior of top level index functions', () => {
         //@ts-ignore
         const spy = jest.spyOn(statsig.instance.logger, 'log');
         let gateExposure = new LogEvent('statsig::gate_exposure');
-        gateExposure.setUser({});
-        gateExposure.setMetadata({
+        gateExposure._setUser({});
+        gateExposure._setMetadata({
           gate: 'test_gate',
           gateValue: String(true),
           ruleID: 'ruleID123',
           reason: EvaluationReason.Network,
           time: Date.now(),
         });
-        gateExposure.setSecondaryExposures([
+        gateExposure._setSecondaryExposures([
           {
             gate: 'dependent_gate_1',
             gateValue: 'true',
@@ -219,14 +219,14 @@ describe('Verify behavior of top level index functions', () => {
         //@ts-ignore
         const spy = jest.spyOn(statsig.instance.logger, 'log');
         let configExposure = new LogEvent('statsig::config_exposure');
-        configExposure.setUser({});
-        configExposure.setMetadata({
+        configExposure._setUser({});
+        configExposure._setMetadata({
           config: 'test_config',
           ruleID: 'ruleID',
           reason: EvaluationReason.Network,
           time: Date.now(),
         });
-        configExposure.setSecondaryExposures([]);
+        configExposure._setSecondaryExposures([]);
         const config = statsig.getConfig('test_config');
         expect(config?.value).toStrictEqual({
           bool: true,
@@ -314,14 +314,14 @@ describe('Verify behavior of top level index functions', () => {
         //@ts-ignore
         const spy = jest.spyOn(statsig.instance.logger, 'log');
         let configExposure = new LogEvent('statsig::config_exposure');
-        configExposure.setUser({});
-        configExposure.setMetadata({
+        configExposure._setUser({});
+        configExposure._setMetadata({
           config: 'test_config',
           ruleID: 'ruleID',
           reason: EvaluationReason.Network,
           time: Date.now(),
         });
-        configExposure.setSecondaryExposures([]);
+        configExposure._setSecondaryExposures([]);
         const exp = statsig.getExperiment('test_config');
         expect(exp?.value).toStrictEqual({
           bool: true,
@@ -377,10 +377,10 @@ describe('Verify behavior of top level index functions', () => {
           extradata: str_2k,
         });
         const trimmedEvent = new LogEvent(str_64.substring(0, 64));
-        trimmedEvent.setValue(str_64.substring(0, 64));
-        trimmedEvent.setMetadata({ error: 'not logged due to size too large' });
-        trimmedEvent.addStatsigMetadata('currentPage', 'http://localhost/');
-        trimmedEvent.setUser(user);
+        trimmedEvent._setValue(str_64.substring(0, 64));
+        trimmedEvent._setMetadata({ error: 'not logged due to size too large' });
+        trimmedEvent._addStatsigMetadata('currentPage', 'http://localhost/');
+        trimmedEvent._setUser(user);
         expect(spy).toHaveBeenCalledWith(trimmedEvent);
       });
   });

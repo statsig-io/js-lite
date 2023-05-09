@@ -35,7 +35,7 @@ describe('Verify behavior of Layer', () => {
       reason: EvaluationReason.Network,
       time: Date.now(),
     });
-    expect(layer.getRuleID()).toStrictEqual('default');
+    expect(layer._getRuleID()).toStrictEqual('default');
   });
 
   test('Test nonexistent keys', () => {

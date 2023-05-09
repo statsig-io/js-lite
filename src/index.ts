@@ -7,11 +7,7 @@ import { EvaluationDetails, EvaluationReason } from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
 
 export { default as DynamicConfig } from './DynamicConfig';
-export { default as Layer } from './Layer';
-export {
-  default as StatsigClient,
-  IStatsig,
-} from './StatsigClient';
+export { IStatsig, default as StatsigClient } from './StatsigClient';
 export { StatsigEnvironment, StatsigOptions } from './StatsigSDKOptions';
 export { EvaluationReason } from './StatsigStore';
 export type { EvaluationDetails } from './StatsigStore';
@@ -19,8 +15,6 @@ export { StatsigUser } from './StatsigUser';
 
 export default class Statsig {
   private static instance: StatsigClient | null = null;
-
-  private constructor() {}
 
   public static async initialize(
     sdkKey: string,
@@ -39,35 +33,23 @@ export default class Statsig {
   public static setInitializeValues(
     initializeValues: Record<string, unknown>,
   ): void {
-    Statsig.getClientX().setInitializeValues(initializeValues);
+    Statsig._getClientX().setInitializeValues(initializeValues);
   }
 
-  public static checkGate(
-    gateName: string,
-    ignoreOverrides: boolean = false,
-  ): boolean {
-    return Statsig.getClientX().checkGate(gateName, ignoreOverrides);
+  public static checkGate(gateName: string): boolean {
+    return Statsig._getClientX().checkGate(gateName);
   }
 
-  public static getConfig(
-    configName: string,
-  ): DynamicConfig {
-    return Statsig.getClientX().getConfig(configName);
+  public static getConfig(configName: string): DynamicConfig {
+    return Statsig._getClientX().getConfig(configName);
   }
 
-  public static getExperiment(
-    experimentName: string,
-  ): DynamicConfig {
-    return Statsig.getClientX().getConfig(
-      experimentName,
-    );
+  public static getExperiment(experimentName: string): DynamicConfig {
+    return Statsig._getClientX().getConfig(experimentName);
   }
 
-  public static getLayer(
-    layerName: string,
-    keepDeviceValue: boolean = false,
-  ): Layer {
-    return Statsig.getClientX().getLayer(layerName, keepDeviceValue);
+  public static getLayer(layerName: string): Layer {
+    return Statsig._getClientX().getLayer(layerName);
   }
 
   public static logEvent(
@@ -75,15 +57,15 @@ export default class Statsig {
     value: string | number | null = null,
     metadata: Record<string, string> | null = null,
   ): void {
-    return Statsig.getClientX().logEvent(eventName, value, metadata);
+    return Statsig._getClientX().logEvent(eventName, value, metadata);
   }
 
   public static updateUser(user: StatsigUser | null): Promise<boolean> {
-    return Statsig.getClientX().updateUser(user);
+    return Statsig._getClientX().updateUser(user);
   }
 
   public static shutdown() {
-    Statsig.getClientX().shutdown();
+    Statsig._getClientX().shutdown();
     Statsig.instance = null;
   }
 
@@ -91,7 +73,7 @@ export default class Statsig {
    * @returns The Statsig stable ID used for device level experiments
    */
   public static getStableID(): string {
-    return Statsig.getClientX().getStableID();
+    return Statsig._getClientX().getStableID();
   }
 
   /**
@@ -116,7 +98,7 @@ export default class Statsig {
     return Statsig.instance != null && Statsig.instance.initializeCalled();
   }
 
-  private static getClientX(): StatsigClient {
+  private static _getClientX(): StatsigClient {
     if (!Statsig.instance) {
       throw new StatsigUninitializedError();
     }

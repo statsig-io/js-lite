@@ -1,11 +1,9 @@
 import DynamicConfig, { OnDefaultValueFallback } from './DynamicConfig';
 import Layer, { LogParameterFunction } from './Layer';
-import { IHasStatsigInternal } from './StatsigClient';
-import BootstrapValidator from './utils/BootstrapValidator';
+import StatsigIdentity from './StatsigIdentity';
 import { StatsigUser } from './StatsigUser';
-import {
-  INTERNAL_STORE_KEY,
-} from './utils/Constants';
+import BootstrapValidator from './utils/BootstrapValidator';
+import { INTERNAL_STORE_KEY } from './utils/Constants';
 import { getHashValue, getUserCacheKey } from './utils/Hashing';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 
@@ -15,7 +13,6 @@ export enum EvaluationReason {
   InvalidBootstrap = 'InvalidBootstrap',
   Cache = 'Cache',
   Prefetch = 'Prefetch',
-  LocalOverride = 'LocalOverride',
   Unrecognized = 'Unrecognized',
   Uninitialized = 'Uninitialized',
   Error = 'Error',
@@ -83,124 +80,86 @@ type UserCacheValues = APIInitializeDataWithPrefetchedUsers & {
 
 const MAX_USER_VALUE_CACHED = 10;
 
+type DefaultValueFallbackFunc = (
+  user: StatsigUser | null,
+  message: string,
+  metadata: object,
+) => void;
+
 export default class StatsigStore {
-  private sdkInternal: IHasStatsigInternal;
+  private _identity: StatsigIdentity;
+  private _loaded: boolean;
+  private _values: Record<string, UserCacheValues | undefined>;
+  private _userValues: UserCacheValues;
+  private _userCacheKey: string;
+  private _reason: EvaluationReason;
 
-  private loaded: boolean;
-  private values: Record<string, UserCacheValues | undefined>;
-  private userValues: UserCacheValues;
-  private userCacheKey: string;
-  private reason: EvaluationReason;
+  private readonly _onDefaultValueFallback: DefaultValueFallbackFunc;
 
-  public constructor(
-    sdkInternal: IHasStatsigInternal,
+  constructor(
+    identity: StatsigIdentity,
+    onDefaultValueFallback: DefaultValueFallbackFunc,
     initializeValues: Record<string, any> | null,
   ) {
-    this.sdkInternal = sdkInternal;
-    this.userCacheKey = this.sdkInternal.getCurrentUserCacheKey();
-    this.values = {};
-    this.userValues = {
-      feature_gates: {},
-      dynamic_configs: {},
-      layer_configs: {},
-      has_updates: false,
-      time: 0,
-      evaluation_time: 0,
-    };
-    this.loaded = false;
-    this.reason = EvaluationReason.Uninitialized;
+    this._identity = identity;
+    this._onDefaultValueFallback = onDefaultValueFallback;
+    this._userCacheKey = this._identity.getUserCacheKey();
+    this._values = {};
+    this._userValues = this._getDefaultUserCacheValues();
+    this._loaded = false;
+    this._reason = EvaluationReason.Uninitialized;
+
     if (initializeValues) {
       this.bootstrap(initializeValues);
     } else {
-      this.loadFromLocalStorage();
+      this._loadFromLocalStorage();
     }
   }
 
   public updateUser(isUserPrefetched: boolean): number | null {
-    this.userCacheKey = this.sdkInternal.getCurrentUserCacheKey();
-    return this.setUserValueFromCache(isUserPrefetched);
+    this._userCacheKey = this._identity.getUserCacheKey();
+    return this._setUserValueFromCache(isUserPrefetched);
   }
 
   public bootstrap(initializeValues: Record<string, any>): void {
-    const key = this.sdkInternal.getCurrentUserCacheKey();
-    const user = this.sdkInternal.getCurrentUser();
+    const key = this._identity.getUserCacheKey();
+    const user = this._identity._user;
 
     const reason = BootstrapValidator.isValid(user, initializeValues)
       ? EvaluationReason.Bootstrap
       : EvaluationReason.InvalidBootstrap;
 
-    // clients are going to assume that the SDK is bootstraped after this method runs
+    // clients are going to assume that the SDK is bootstrapped after this method runs
     // if we fail to parse, we will fall back to defaults, but we dont want to throw
     // when clients try to check gates/configs/etc after this point
-    this.loaded = true;
+    this._loaded = true;
     try {
-      this.userValues.feature_gates = initializeValues.feature_gates ?? {};
-      this.userValues.dynamic_configs = initializeValues.dynamic_configs ?? {};
-      this.userValues.layer_configs = initializeValues.layer_configs ?? {};
-      this.userValues.evaluation_time = Date.now();
-      this.userValues.time = Date.now();
-      this.values[key] = this.userValues;
-      this.reason = reason;
+      this._userValues.feature_gates = initializeValues.feature_gates ?? {};
+      this._userValues.dynamic_configs = initializeValues.dynamic_configs ?? {};
+      this._userValues.layer_configs = initializeValues.layer_configs ?? {};
+      this._userValues.evaluation_time = Date.now();
+      this._userValues.time = Date.now();
+      this._values[key] = this._userValues;
+      this._reason = reason;
     } catch (_e) {
       return;
     }
   }
 
-  private loadFromLocalStorage(): void {
-    this.parseCachedValues(
-      StatsigLocalStorage.getItem(INTERNAL_STORE_KEY),
-    );
-    this.loaded = true;
-  }
-
   public isLoaded(): boolean {
-    return this.loaded;
+    return this._loaded;
   }
 
   public getLastUpdateTime(user: StatsigUser | null): number | null {
     const userHash = getHashValue(JSON.stringify(user));
-    if (this.userValues.user_hash == userHash) {
-      return this.userValues.time;
+    if (this._userValues.user_hash == userHash) {
+      return this._userValues.time;
     }
     return null;
   }
 
-  private parseCachedValues(
-    allValues: string | null,
-  ): void {
-    try {
-      this.values = allValues ? JSON.parse(allValues) : this.values;
-      this.setUserValueFromCache();
-    } catch (e) {
-      // Cached value corrupted, remove cache
-      this.removeFromStorage(INTERNAL_STORE_KEY);
-    }
-  }
-
-  private setUserValueFromCache(
-    isUserPrefetched: boolean = false,
-  ): number | null {
-    let cachedValues = this.values[this.userCacheKey];
-    if (cachedValues == null) {
-      this.resetUserValues();
-      this.reason = EvaluationReason.Uninitialized;
-      return null;
-    }
-
-    this.userValues = cachedValues;
-    this.reason = isUserPrefetched
-      ? EvaluationReason.Prefetch
-      : EvaluationReason.Cache;
-
-    return cachedValues.evaluation_time ?? 0;
-  }
-
-  private removeFromStorage(key: string) {
-    StatsigLocalStorage.removeItem(key);
-  }
-
   public setEvaluationReason(evalReason: EvaluationReason) {
-    this.reason = evalReason;
+    this._reason = evalReason;
   }
 
   public async save(
@@ -211,33 +170,135 @@ export default class StatsigStore {
     const requestedUserCacheKey = getUserCacheKey(user);
     const initResponse = jsonConfigs as APIInitializeData;
 
-    this.mergeInitializeResponseIntoUserMap(
+    this._mergeInitializeResponseIntoUserMap(
       initResponse,
-      this.values,
+      this._values,
       requestedUserCacheKey,
       user,
       (userValues) => userValues,
     );
 
     if (updateState) {
-      const userValues = this.values[requestedUserCacheKey];
+      const userValues = this._values[requestedUserCacheKey];
       if (
         userValues &&
         requestedUserCacheKey &&
-        requestedUserCacheKey == this.userCacheKey
+        requestedUserCacheKey == this._userCacheKey
       ) {
-        this.userValues = userValues;
-        this.reason = EvaluationReason.Network;
+        this._userValues = userValues;
+        this._reason = EvaluationReason.Network;
       }
     }
 
-    this.values = await this.writeValuesToStorage(this.values);
+    this._values = await this._writeValuesToStorage(this._values);
+  }
+
+  public checkGate(gateName: string): StoreGateFetchResult {
+    const gateNameHash = getHashValue(gateName);
+    let gateValue: APIFeatureGate = {
+      name: gateName,
+      value: false,
+      rule_id: '',
+      secondary_exposures: [],
+    };
+    let details: EvaluationDetails;
+    let value = this._userValues?.feature_gates[gateNameHash];
+    if (value) {
+      gateValue = value;
+    }
+    details = this._getEvaluationDetails(value != null);
+
+    return { evaluationDetails: details, gate: gateValue };
+  }
+
+  public getConfig(configName: string): DynamicConfig {
+    const configNameHash = getHashValue(configName);
+    let configValue: DynamicConfig;
+    let details: EvaluationDetails;
+    if (this._userValues?.dynamic_configs[configNameHash] != null) {
+      const rawConfigValue = this._userValues?.dynamic_configs[configNameHash];
+      details = this._getEvaluationDetails(true);
+      configValue = this._createDynamicConfig(
+        configName,
+        rawConfigValue,
+        details,
+      );
+    } else {
+      details = this._getEvaluationDetails(false);
+      configValue = new DynamicConfig(configName, {}, '', details);
+    }
+
+    return configValue;
+  }
+
+  public getLayer(
+    logParameterFunction: LogParameterFunction | null,
+    layerName: string,
+  ): Layer {
+    const latestValue = this._getLatestValue(layerName, 'layer_configs');
+    const details = this._getEvaluationDetails(latestValue != null);
+
+    return Layer._create(
+      layerName,
+      latestValue?.value ?? {},
+      latestValue?.rule_id ?? '',
+      details,
+      logParameterFunction,
+      latestValue?.secondary_exposures,
+      latestValue?.undelegated_secondary_exposures,
+      latestValue?.allocated_experiment_name ?? '',
+      latestValue?.explicit_parameters,
+    );
+  }
+
+  public getGlobalEvaluationDetails(): EvaluationDetails {
+    return {
+      reason: this._reason ?? EvaluationReason.Uninitialized,
+      time: this._userValues.evaluation_time ?? 0,
+    };
+  }
+
+  private _loadFromLocalStorage(): void {
+    this._parseCachedValues(StatsigLocalStorage.getItem(INTERNAL_STORE_KEY));
+    this._loaded = true;
+  }
+
+  private _parseCachedValues(allValues: string | null): void {
+    try {
+      this._values = allValues ? JSON.parse(allValues) : this._values;
+      this._setUserValueFromCache();
+    } catch (e) {
+      // Cached value corrupted, remove cache
+      this._removeFromStorage(INTERNAL_STORE_KEY);
+    }
+  }
+
+  private _setUserValueFromCache(
+    isUserPrefetched: boolean = false,
+  ): number | null {
+    let cachedValues = this._values[this._userCacheKey];
+    if (cachedValues == null) {
+      this._resetUserValues();
+      this._reason = EvaluationReason.Uninitialized;
+      return null;
+    }
+
+    this._userValues = cachedValues;
+    this._reason = isUserPrefetched
+      ? EvaluationReason.Prefetch
+      : EvaluationReason.Cache;
+
+    return cachedValues.evaluation_time ?? 0;
+  }
+
+  private _removeFromStorage(key: string) {
+    StatsigLocalStorage.removeItem(key);
   }
 
   /**
    * Merges the provided init configs into the provided config map, according to the provided merge function
    */
-  private mergeInitializeResponseIntoUserMap(
+  private _mergeInitializeResponseIntoUserMap(
     data: APIInitializeDataWithPrefetchedUsers,
     configMap: Record<string, UserCacheValues | undefined>,
     requestedUserCacheKey: string,
@@ -249,14 +310,14 @@ export default class StatsigStore {
       for (const key of cacheKeys) {
         const prefetched = data.prefetched_user_values[key];
         configMap[key] = mergeFn(
-          this.convertAPIDataToCacheValues(prefetched, key),
+          this._convertAPIDataToCacheValues(prefetched, key),
           key,
         );
       }
     }
 
     if (requestedUserCacheKey) {
-      const requestedUserValues = this.convertAPIDataToCacheValues(
+      const requestedUserValues = this._convertAPIDataToCacheValues(
         data,
         requestedUserCacheKey,
       );
@@ -272,35 +333,14 @@ export default class StatsigStore {
     }
   }
 
-  private getDefaultUserCacheValues(): UserCacheValues {
+  private _getDefaultUserCacheValues(): UserCacheValues {
     return {
       feature_gates: {},
       layer_configs: {},
       dynamic_configs: {},
       time: 0,
       evaluation_time: 0,
-    };
-  }
-
-  private mergeUserCacheValues(
-    baseValues: UserCacheValues,
-    valuesToMerge: UserCacheValues,
-  ): UserCacheValues {
-    return {
-      feature_gates: {
-        ...baseValues.feature_gates,
-        ...valuesToMerge.feature_gates,
-      },
-      layer_configs: {
-        ...baseValues.layer_configs,
-        ...valuesToMerge.layer_configs,
-      },
-      dynamic_configs: {
-        ...baseValues.dynamic_configs,
-        ...valuesToMerge.dynamic_configs,
-      },
-      time: valuesToMerge.time,
-      evaluation_time: valuesToMerge.evaluation_time,
+      has_updates: false,
     };
   }
 
@@ -309,7 +349,7 @@ export default class StatsigStore {
    * MAX_USER_VALUE_CACHED number entries.
    * @returns The truncated entry list
    */
-  private async writeValuesToStorage(
+  private async _writeValuesToStorage(
     valuesToWrite: Record<string, UserCacheValues | undefined>,
   ): Promise<Record<string, UserCacheValues | undefined>> {
     // trim values to only have the max allowed
@@ -335,82 +375,18 @@ export default class StatsigStore {
     return valuesToWrite;
   }
 
-  public checkGate(
-    gateName: string,
-    ignoreOverrides: boolean = false,
-  ): StoreGateFetchResult {
-    const gateNameHash = getHashValue(gateName);
-    let gateValue: APIFeatureGate = {
-      name: gateName,
-      value: false,
-      rule_id: '',
-      secondary_exposures: [],
-    };
-    let details: EvaluationDetails;
-    let value = this.userValues?.feature_gates[gateNameHash];
-      if (value) {
-        gateValue = value;
-      }
-      details = this.getEvaluationDetails(value != null);
-
-    return { evaluationDetails: details, gate: gateValue };
-  }
-
-  public getConfig(
-    configName: string,
-  ): DynamicConfig {
-    const configNameHash = getHashValue(configName);
-    let configValue: DynamicConfig;
-    let details: EvaluationDetails;
-    if (this.userValues?.dynamic_configs[configNameHash] != null) {
-      const rawConfigValue = this.userValues?.dynamic_configs[configNameHash];
-      details = this.getEvaluationDetails(true);
-      configValue = this.createDynamicConfig(
-        configName,
-        rawConfigValue,
-        details,
-      );
-    } else {
-      details = this.getEvaluationDetails(false);
-      configValue = new DynamicConfig(configName, {}, '', details);
-    }
-
-    return configValue;
-  }
-
-  public getLayer(
-    logParameterFunction: LogParameterFunction | null,
-    layerName: string,
-  ): Layer {
-    const latestValue = this.getLatestValue(layerName, 'layer_configs');
-    const details = this.getEvaluationDetails(latestValue != null);
-
-    return Layer._create(
-      layerName,
-      latestValue?.value ?? {},
-      latestValue?.rule_id ?? '',
-      details,
-      logParameterFunction,
-      latestValue?.secondary_exposures,
-      latestValue?.undelegated_secondary_exposures,
-      latestValue?.allocated_experiment_name ?? '',
-      latestValue?.explicit_parameters,
-    );
-  }
-
-
-  private getLatestValue(
+  private _getLatestValue(
     name: string,
     topLevelKey: 'layer_configs' | 'dynamic_configs',
   ): APIDynamicConfig | undefined {
     const hash = getHashValue(name);
     return (
-      this.userValues?.[topLevelKey]?.[hash] ??
-      this.userValues?.[topLevelKey]?.[name]
+      this._userValues?.[topLevelKey]?.[hash] ??
+      this._userValues?.[topLevelKey]?.[name]
     );
   }
 
-  private createDynamicConfig(
+  private _createDynamicConfig(
     name: string,
     apiConfig: APIDynamicConfig | undefined,
     details: EvaluationDetails,
@@ -422,31 +398,24 @@ export default class StatsigStore {
       details,
       apiConfig?.secondary_exposures,
       apiConfig?.allocated_experiment_name ?? '',
-      this.makeOnConfigDefaultValueFallback(this.sdkInternal.getCurrentUser()),
+      this._makeOnConfigDefaultValueFallback(this._identity._user),
     );
   }
 
-  public getGlobalEvaluationDetails(): EvaluationDetails {
-    return {
-      reason: this.reason ?? EvaluationReason.Uninitialized,
-      time: this.userValues.evaluation_time ?? 0,
-    };
-  }
-
-  private getEvaluationDetails(
+  private _getEvaluationDetails(
     valueExists: Boolean,
     reasonOverride?: EvaluationReason,
   ): EvaluationDetails {
     if (valueExists) {
       return {
-        reason: this.reason,
-        time: this.userValues.evaluation_time ?? Date.now(),
+        reason: this._reason,
+        time: this._userValues.evaluation_time ?? Date.now(),
       };
     } else {
       return {
         reason:
           reasonOverride ??
-          (this.reason == EvaluationReason.Uninitialized
+          (this._reason == EvaluationReason.Uninitialized
             ? EvaluationReason.Uninitialized
             : EvaluationReason.Unrecognized),
         time: Date.now(),
@@ -454,17 +423,11 @@ export default class StatsigStore {
     }
   }
 
-  private resetUserValues() {
-    this.userValues = {
-      feature_gates: {},
-      dynamic_configs: {},
-      layer_configs: {},
-      time: 0,
-      evaluation_time: 0,
-    };
+  private _resetUserValues() {
+    this._userValues = this._getDefaultUserCacheValues();
   }
 
-  private convertAPIDataToCacheValues(
+  private _convertAPIDataToCacheValues(
     data: APIInitializeData,
     cacheKey: string,
   ): UserCacheValues {
@@ -478,11 +441,7 @@ export default class StatsigStore {
     };
   }
 
-  private setItemToStorage(key: string, value: string) {
-    StatsigLocalStorage.setItem(key, value);
-  }
-
-  private makeOnConfigDefaultValueFallback(
+  private _makeOnConfigDefaultValueFallback(
     user: StatsigUser | null,
   ): OnDefaultValueFallback {
     return (config, parameter, defaultValueType, valueType) => {
@@ -490,13 +449,13 @@ export default class StatsigStore {
         return;
       }
 
-      this.sdkInternal.getLogger().logConfigDefaultValueFallback(
+      this._onDefaultValueFallback(
         user,
         `Parameter ${parameter} is a value of type ${valueType}.
           Returning requested defaultValue type ${defaultValueType}`,
         {
-          name: config.getName(),
-          ruleID: config.getRuleID(),
+          name: config._name,
+          ruleID: config._ruleID,
           parameter,
           defaultValueType,
           valueType,

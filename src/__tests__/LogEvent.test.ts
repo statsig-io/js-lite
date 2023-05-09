@@ -12,8 +12,8 @@ describe('Verify log event is constructed correctly', () => {
       privateAttributes: { secret: 'Statsig is awesome!' },
     };
     const event = new LogEvent('my_event');
-    event.setUser(user);
-    event.setSecondaryExposures([
+    event._setUser(user);
+    event._setSecondaryExposures([
       {
         gate: 'dependent_gate_1',
         gateValue: 'true',
@@ -25,9 +25,9 @@ describe('Verify log event is constructed correctly', () => {
         ruleID: 'rule_2',
       },
     ]);
-    expect(event.toJsonObject().user.privateAttributes).toBeUndefined();
+    expect(event._toJsonObject().user.privateAttributes).toBeUndefined();
     expect(user.privateAttributes.secret).toEqual('Statsig is awesome!');
-    expect(event.toJsonObject().secondaryExposures).toEqual([
+    expect(event._toJsonObject().secondaryExposures).toEqual([
       {
         gate: 'dependent_gate_1',
         gateValue: 'true',

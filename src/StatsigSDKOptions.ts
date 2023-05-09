@@ -37,23 +37,23 @@ type BoundedNumberInput = {
 };
 
 export default class StatsigSDKOptions {
-  private api: string;
-  private disableCurrentPageLogging: boolean;
-  private environment: StatsigEnvironment | null;
-  private loggingIntervalMillis: number;
-  private loggingBufferMaxSize: number;
-  private disableNetworkKeepalive: boolean;
-  private overrideStableID: string | null;
-  private localMode: boolean;
-  private initTimeoutMs: number;
-  private disableErrorLogging: boolean;
-  private disableAutoMetricsLogging: boolean;
-  private initializeValues: Record<string, any> | null;
-  private eventLoggingApi: string;
-  private disableLocalStorage: boolean;
-  private disableDiagnosticsLogging: boolean;
-  private ignoreWindowUndefined: boolean;
-  private fetchMode: FetchMode;
+  readonly api: string;
+  readonly disableCurrentPageLogging: boolean;
+  readonly environment: StatsigEnvironment | null;
+  readonly loggingIntervalMillis: number;
+  readonly loggingBufferMaxSize: number;
+  readonly disableNetworkKeepalive: boolean;
+  readonly overrideStableID: string | null;
+  readonly localMode: boolean;
+  readonly initTimeoutMs: number;
+  readonly disableErrorLogging: boolean;
+  readonly disableAutoMetricsLogging: boolean;
+  readonly initializeValues: Record<string, any> | null;
+  readonly eventLoggingApi: string;
+  readonly disableLocalStorage: boolean;
+  readonly disableDiagnosticsLogging: boolean;
+  readonly ignoreWindowUndefined: boolean;
+  readonly fetchMode: FetchMode;
 
   constructor(options?: StatsigOptions | null) {
     if (options == null) {
@@ -99,74 +99,6 @@ export default class StatsigSDKOptions {
     this.disableDiagnosticsLogging = options.disableDiagnosticsLogging ?? false;
     this.ignoreWindowUndefined = options?.ignoreWindowUndefined ?? false;
     this.fetchMode = options.fetchMode ?? 'network-only';
-  }
-
-  getApi(): string {
-    return this.api;
-  }
-
-  getEnvironment(): StatsigEnvironment | null {
-    return this.environment;
-  }
-
-  getDisableCurrentPageLogging(): boolean {
-    return this.disableCurrentPageLogging;
-  }
-
-  getLoggingIntervalMillis(): number {
-    return this.loggingIntervalMillis;
-  }
-
-  getLoggingBufferMaxSize(): number {
-    return this.loggingBufferMaxSize;
-  }
-
-  getDisableNetworkKeepalive(): boolean {
-    return this.disableNetworkKeepalive;
-  }
-
-  getOverrideStableID(): string | null {
-    return this.overrideStableID;
-  }
-
-  getLocalModeEnabled(): boolean {
-    return this.localMode;
-  }
-
-  getInitTimeoutMs(): number {
-    return this.initTimeoutMs;
-  }
-
-  getDisableErrorLogging(): boolean {
-    return this.disableErrorLogging;
-  }
-
-  getDisableAutoMetricsLogging(): boolean {
-    return this.disableAutoMetricsLogging;
-  }
-
-  getInitializeValues(): Record<string, any> | null {
-    return this.initializeValues;
-  }
-
-  getEventLoggingApi(): string {
-    return this.eventLoggingApi;
-  }
-
-  getDisableLocalStorage(): boolean {
-    return this.disableLocalStorage;
-  }
-
-  getDisableDiagnosticsLogging(): boolean {
-    return this.disableDiagnosticsLogging;
-  }
-
-  getIgnoreWindowUndefined(): boolean {
-    return this.ignoreWindowUndefined;
-  }
-
-  getFetchMode(): FetchMode {
-    return this.fetchMode;
   }
 
   private normalizeNumberInput(

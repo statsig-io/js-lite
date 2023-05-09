@@ -8,15 +8,16 @@ export type OnDefaultValueFallback = (
 ) => void;
 
 export default class DynamicConfig {
-  private name: string;
   public value: Record<string, any>;
-  private ruleID: string;
-  private secondaryExposures: Record<string, string>[];
-  private allocatedExperimentName: string;
-  private evaluationDetails: EvaluationDetails;
-  private onDefaultValueFallback: OnDefaultValueFallback | null = null;
 
-  public constructor(
+  readonly _name: string;
+  readonly _ruleID: string;
+  readonly _secondaryExposures: Record<string, string>[];
+  readonly _allocatedExperimentName: string;
+  readonly _evaluationDetails: EvaluationDetails;
+  readonly _onDefaultValueFallback: OnDefaultValueFallback | null = null;
+
+  constructor(
     configName: string,
     configValue: Record<string, any>,
     ruleID: string,
@@ -25,13 +26,14 @@ export default class DynamicConfig {
     allocatedExperimentName: string = '',
     onDefaultValueFallback: OnDefaultValueFallback | null = null,
   ) {
-    this.name = configName;
     this.value = JSON.parse(JSON.stringify(configValue ?? {}));
-    this.ruleID = ruleID ?? '';
-    this.secondaryExposures = secondaryExposures;
-    this.allocatedExperimentName = allocatedExperimentName;
-    this.evaluationDetails = evaluationDetails;
-    this.onDefaultValueFallback = onDefaultValueFallback;
+
+    this._name = configName;
+    this._ruleID = ruleID ?? '';
+    this._secondaryExposures = secondaryExposures;
+    this._allocatedExperimentName = allocatedExperimentName;
+    this._evaluationDetails = evaluationDetails;
+    this._onDefaultValueFallback = onDefaultValueFallback;
   }
 
   public get<T>(
@@ -55,7 +57,7 @@ export default class DynamicConfig {
         return val;
       }
 
-      this.onDefaultValueFallback?.(this, key, expectedType, actualType);
+      this._onDefaultValueFallback?.(this, key, expectedType, actualType);
       return defaultValue;
     }
 
@@ -63,7 +65,7 @@ export default class DynamicConfig {
       return val as unknown as T;
     }
 
-    this.onDefaultValueFallback?.(this, key, expectedType, actualType);
+    this._onDefaultValueFallback?.(this, key, expectedType, actualType);
     return defaultValue;
   }
 
@@ -81,25 +83,5 @@ export default class DynamicConfig {
       return defaultValue;
     }
     return this.value[key];
-  }
-
-  public getRuleID(): string {
-    return this.ruleID;
-  }
-
-  public getName(): string {
-    return this.name;
-  }
-
-  public getEvaluationDetails(): EvaluationDetails {
-    return this.evaluationDetails;
-  }
-
-  public _getSecondaryExposures(): Record<string, string>[] {
-    return this.secondaryExposures;
-  }
-
-  public _getAllocatedExperimentName(): string {
-    return this.allocatedExperimentName;
   }
 }

@@ -1,9 +1,7 @@
-import { IHasStatsigInternal } from './StatsigClient';
+import ErrorBoundary from './ErrorBoundary';
+import Identity from './StatsigIdentity';
+import StatsigSDKOptions from './StatsigSDKOptions';
 import { StatsigUser } from './StatsigUser';
-import Diagnostics, {
-  DiagnosticsEvent,
-  DiagnosticsKey,
-} from './utils/Diagnostics';
 
 export enum StatsigEndpoint {
   Initialize = 'initialize',
@@ -21,15 +19,17 @@ const NO_CONTENT = 204;
  * An extension of the promise type, it adds a
  * function `eventually`. In the event that the provided timeout
  * is reached, the function will still be called regardless.
- * 
+ *
  * This function WILL NOT BE CALLED if the promise resolves normally.
  */
 type PromiseWithTimeout<T> = Promise<T> & {
   eventually: (fn: (t: T) => void) => PromiseWithTimeout<T>;
-}
+};
 
 export default class StatsigNetwork {
-  private sdkInternal: IHasStatsigInternal;
+  private readonly _options: StatsigSDKOptions;
+  private readonly _identity: Identity;
+  private readonly _errorBoundary: ErrorBoundary;
 
   private readonly retryCodes: Record<number, boolean> = {
     408: true,
@@ -46,179 +46,48 @@ export default class StatsigNetwork {
 
   private canUseKeepalive: boolean = false;
 
-  public constructor(sdkInternal: IHasStatsigInternal) {
-    this.sdkInternal = sdkInternal;
+  public constructor(
+    options: StatsigSDKOptions,
+    identity: Identity,
+    errorBoundary: ErrorBoundary,
+  ) {
+    this._options = options;
+    this._identity = identity;
+    this._errorBoundary = errorBoundary;
     this.leakyBucket = {};
-    this.init();
-  }
-
-  private init(): void {
-    if (!this.sdkInternal.getOptions().getDisableNetworkKeepalive()) {
-      try {
-        this.canUseKeepalive = 'keepalive' in new Request('');
-      } catch (_e) { }
-    }
+    this._init();
   }
 
   public fetchValues(
     user: StatsigUser | null,
     sinceTime: number | null,
     timeout: number,
-    diagnostics?: Diagnostics,
     prefetchUsers?: Record<string, StatsigUser>,
   ): PromiseWithTimeout<Record<string, any>> {
     const input = {
       user,
       prefetchUsers,
-      statsigMetadata: this.sdkInternal.getStatsigMetadata(),
+      statsigMetadata: this._identity._statsigMetadata,
       sinceTime: sinceTime ?? undefined,
+      hash: 'djb2',
     };
 
-    return this.postWithTimeout(
+    return this._postWithTimeout(
       StatsigEndpoint.Initialize,
       input,
-      diagnostics,
       timeout, // timeout for early returns
       3, // retries
     );
   }
 
-  private postWithTimeout<T>(
-    endpointName: StatsigEndpoint,
-    body: object,
-    diagnostics?: Diagnostics,
-    timeout: number = 0,
-    retries: number = 0,
-    backoff: number = 1000,
-  ): PromiseWithTimeout<T> {
-    if (endpointName === StatsigEndpoint.Initialize) {
-      diagnostics?.mark(
-        DiagnosticsKey.INITIALIZE,
-        DiagnosticsEvent.START,
-        'network_request',
-      );
-    }
-
-    let hasTimedOut = false;
-    let timer = null;
-    let cachedReturnValue: T | null = null;
-    let eventuals: ((t: T) => void)[] = [];
-
-    const eventually = (boundScope: PromiseWithTimeout<T>) => (fn: (t: T) => void) => {
-      if (hasTimedOut && cachedReturnValue) {
-        fn(cachedReturnValue);
-      } else {
-        eventuals.push(fn);
-      }
-
-      return boundScope;
-    };
-
-    if (timeout != 0) {
-      timer = new Promise<void>((resolve, reject) => {
-        setTimeout(() => {
-          hasTimedOut = true;
-          reject(
-            new Error(
-              `The initialization timeout of ${timeout}ms has been hit before the network request has completed.`,
-            ),
-          );
-        }, timeout);
-      });
-    }
-
-    const fetchPromise = this.postToEndpoint(
-      endpointName,
-      body,
-      retries,
-      backoff,
-    )
-      .then((res) => {
-        if (endpointName === StatsigEndpoint.Initialize) {
-          diagnostics?.mark(
-            DiagnosticsKey.INITIALIZE,
-            DiagnosticsEvent.END,
-            'network_request',
-            res.status,
-          );
-          diagnostics?.addMetadata(
-            'is_delta',
-            false,
-          );
-        }
-        if (!res.ok) {
-          return Promise.reject(
-            new Error(
-              `Request to ${endpointName} failed with status ${res.status}`,
-            ),
-          );
-        }
-
-        if (typeof res.data !== 'object') {
-          const error = new Error(
-            `Request to ${endpointName} received invalid response type. Expected 'object' but got '${typeof res.data}'`,
-          );
-          this.sdkInternal
-            .getErrorBoundary()
-            .logError('postWithTimeoutInvalidRes', error, async () => {
-              return this.getErrorData(
-                endpointName,
-                body,
-                retries,
-                backoff,
-                res,
-              );
-            });
-          return Promise.reject(error);
-        }
-
-        const json = res.data;
-        return this.sdkInternal.getErrorBoundary().capture(
-          'postWithTimeout',
-          async () => {
-            cachedReturnValue = json as T;
-            if (hasTimedOut) {
-              eventuals.forEach(fn => fn(json as T));
-              eventuals = [];
-            }
-            return Promise.resolve(json);
-          },
-          () => {
-            return Promise.resolve({});
-          },
-          async () => {
-            return this.getErrorData(endpointName, body, retries, backoff, res);
-          },
-        );
-      })
-      .catch((e) => {
-        if (endpointName === StatsigEndpoint.Initialize) {
-          diagnostics?.mark(
-            DiagnosticsKey.INITIALIZE,
-            DiagnosticsEvent.END,
-            'network_request',
-            false,
-          );
-        }
-
-        return Promise.reject(e);
-      });
-    
-    const racingPromise = (timer ? Promise.race([fetchPromise, timer]) : fetchPromise) as PromiseWithTimeout<T>;
-    racingPromise.eventually = eventually(racingPromise);
-
-    return racingPromise;
-  }
-
   public sendLogBeacon(payload: Record<string, any>): boolean {
-    if (this.sdkInternal.getOptions().getLocalModeEnabled()) {
+    if (this._options.localMode) {
       return true;
     }
     const url = new URL(
-      this.sdkInternal.getOptions().getEventLoggingApi() +
-      StatsigEndpoint.LogEventBeacon,
+      this._options.eventLoggingApi + StatsigEndpoint.LogEventBeacon,
     );
-    url.searchParams.append('k', this.sdkInternal.getSDKKey());
+    url.searchParams.append('k', this._identity._sdkKey);
     payload.clientTime = Date.now() + '';
     let stringPayload = null;
     try {
@@ -236,7 +105,7 @@ export default class StatsigNetwork {
     backoff: number = 1000,
     useKeepalive: boolean = false,
   ): Promise<NetworkResponse> {
-    if (this.sdkInternal.getOptions().getLocalModeEnabled()) {
+    if (this._options.localMode) {
       return Promise.reject('no network requests in localMode');
     }
     if (typeof fetch !== 'function') {
@@ -244,15 +113,14 @@ export default class StatsigNetwork {
       return Promise.reject('fetch is not defined');
     }
 
-    if (typeof window === 'undefined' && !this.sdkInternal.getOptions().getIgnoreWindowUndefined()) {
+    if (typeof window === 'undefined' && !this._options.ignoreWindowUndefined) {
       // by default, dont issue requests from the server
       return Promise.reject('window is not defined');
     }
 
-    const api =
-      [StatsigEndpoint.Initialize].includes(endpointName)
-        ? this.sdkInternal.getOptions().getApi()
-        : this.sdkInternal.getOptions().getEventLoggingApi();
+    const api = [StatsigEndpoint.Initialize].includes(endpointName)
+      ? this._options.api
+      : this._options.eventLoggingApi;
     const url = api + endpointName;
     const counter = this.leakyBucket[url];
     if (counter != null && counter >= 30) {
@@ -270,15 +138,17 @@ export default class StatsigNetwork {
     }
     let postBody = JSON.stringify(body);
 
+    const statsigMetadata = this._identity._statsigMetadata;
+
     const params: RequestInit = {
       method: 'POST',
       body: postBody,
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
-        'STATSIG-API-KEY': this.sdkInternal.getSDKKey(),
+        'STATSIG-API-KEY': this._identity._sdkKey,
         'STATSIG-CLIENT-TIME': Date.now() + '',
-        'STATSIG-SDK-TYPE': this.sdkInternal.getSDKType(),
-        'STATSIG-SDK-VERSION': this.sdkInternal.getSDKVersion(),
+        'STATSIG-SDK-TYPE': statsigMetadata.sdkType,
+        'STATSIG-SDK-VERSION': statsigMetadata.sdkVersion,
       },
     };
 
@@ -332,7 +202,123 @@ export default class StatsigNetwork {
     return this.canUseKeepalive;
   }
 
-  private async getErrorData(
+  private _init(): void {
+    if (!this._options.disableNetworkKeepalive) {
+      try {
+        this.canUseKeepalive = 'keepalive' in new Request('');
+      } catch (_e) {}
+    }
+  }
+
+  private _postWithTimeout<T>(
+    endpointName: StatsigEndpoint,
+    body: object,
+    timeout: number = 0,
+    retries: number = 0,
+    backoff: number = 1000,
+  ): PromiseWithTimeout<T> {
+    let hasTimedOut = false;
+    let timer = null;
+    let cachedReturnValue: T | null = null;
+    let eventuals: ((t: T) => void)[] = [];
+
+    const eventually =
+      (boundScope: PromiseWithTimeout<T>) => (fn: (t: T) => void) => {
+        if (hasTimedOut && cachedReturnValue) {
+          fn(cachedReturnValue);
+        } else {
+          eventuals.push(fn);
+        }
+
+        return boundScope;
+      };
+
+    if (timeout != 0) {
+      timer = new Promise<void>((resolve, reject) => {
+        setTimeout(() => {
+          hasTimedOut = true;
+          reject(
+            new Error(
+              `The initialization timeout of ${timeout}ms has been hit before the network request has completed.`,
+            ),
+          );
+        }, timeout);
+      });
+    }
+
+    const fetchPromise = this.postToEndpoint(
+      endpointName,
+      body,
+      retries,
+      backoff,
+    )
+      .then((res) => {
+        if (!res.ok) {
+          return Promise.reject(
+            new Error(
+              `Request to ${endpointName} failed with status ${res.status}`,
+            ),
+          );
+        }
+
+        if (typeof res.data !== 'object') {
+          const error = new Error(
+            `Request to ${endpointName} received invalid response type. Expected 'object' but got '${typeof res.data}'`,
+          );
+          this._errorBoundary._logError(
+            'postWithTimeoutInvalidRes',
+            error,
+            async () => {
+              return this._getErrorData(
+                endpointName,
+                body,
+                retries,
+                backoff,
+                res,
+              );
+            },
+          );
+          return Promise.reject(error);
+        }
+
+        const json = res.data;
+        return this._errorBoundary._capture(
+          'postWithTimeout',
+          async () => {
+            cachedReturnValue = json as T;
+            if (hasTimedOut) {
+              eventuals.forEach((fn) => fn(json as T));
+              eventuals = [];
+            }
+            return Promise.resolve(json);
+          },
+          () => {
+            return Promise.resolve({});
+          },
+          async () => {
+            return this._getErrorData(
+              endpointName,
+              body,
+              retries,
+              backoff,
+              res,
+            );
+          },
+        );
+      })
+      .catch((e) => {
+        return Promise.reject(e);
+      });
+
+    const racingPromise = (
+      timer ? Promise.race([fetchPromise, timer]) : fetchPromise
+    ) as PromiseWithTimeout<T>;
+    racingPromise.eventually = eventually(racingPromise);
+
+    return racingPromise;
+  }
+
+  private async _getErrorData(
     endpointName: StatsigEndpoint,
     body: object,
     retries: number,

@@ -1,13 +1,14 @@
 import { StatsigUser } from './StatsigUser';
 import { STATSIG_STABLE_ID_KEY } from './utils/Constants';
+import { getUserCacheKey } from './utils/Hashing';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 
 import { version as SDKVersion } from './SDKVersion';
 
-type StatsigMetadata = {
+export type StatsigMetadata = {
   sdkType: string;
   sdkVersion: string;
-  stableID?: string;
+  stableID: string;
   locale?: string;
   appVersion?: string;
   systemVersion?: string;
@@ -17,74 +18,61 @@ type StatsigMetadata = {
 };
 
 export default class Identity {
-  private user: StatsigUser | null;
-  private statsigMetadata: StatsigMetadata;
-  private sdkType: string = 'js-client';
-  private sdkVersion: string;
+  _user: StatsigUser | null;
 
-  public constructor(
+  readonly _sdkKey: string;
+  readonly _statsigMetadata: StatsigMetadata;
+
+  private _sdkType: string = 'js-client';
+
+  private readonly _sdkVersion: string;
+
+  constructor(
+    sdkKey: string,
     user: StatsigUser | null,
     overrideStableID?: string | null,
   ) {
-    this.user = user;
-    this.sdkVersion = SDKVersion;
-    this.statsigMetadata = {
-      sdkType: this.sdkType,
-      sdkVersion: this.sdkVersion,
-    };
+    this._sdkKey = sdkKey;
+    this._user = user;
+    this._sdkVersion = SDKVersion;
 
     let stableID = overrideStableID;
     stableID =
-        stableID ??
-        StatsigLocalStorage.getItem(STATSIG_STABLE_ID_KEY) ??
-        this.getUUID();
-    if (stableID) {
-      this.statsigMetadata.stableID = stableID;
-    }
+      stableID ??
+      StatsigLocalStorage.getItem(STATSIG_STABLE_ID_KEY) ??
+      this._getUUID();
+
+    this._statsigMetadata = {
+      stableID: stableID,
+      sdkType: this._sdkType,
+      sdkVersion: this._sdkVersion,
+    };
   }
 
-  public saveStableID(): void {
-    if (this.statsigMetadata.stableID != null) {
+  saveStableID(): void {
+    if (this._statsigMetadata.stableID != null) {
       StatsigLocalStorage.setItem(
         STATSIG_STABLE_ID_KEY,
-        this.statsigMetadata.stableID,
+        this._statsigMetadata.stableID,
       );
     }
   }
 
-  public getSDKType(): string {
-    return this.sdkType;
+  getUserCacheKey(): string {
+    return getUserCacheKey(this._user);
   }
 
-  public getSDKVersion(): string {
-    return this.sdkVersion;
-  }
-
-  public getStatsigMetadata(): Record<string, string> {
-    this.statsigMetadata.sdkType = this.sdkType;
-    this.statsigMetadata.sdkVersion = this.sdkVersion;
-    return this.statsigMetadata;
-  }
-
-  public getUser(): StatsigUser | null {
-    return this.user;
-  }
-
-  public updateUser(user: StatsigUser | null): void {
-    this.user = user;
-  }
-
-  private getUUID(): string {
+  private _getUUID(): string {
     let uuid = '';
     for (let i = 0; i < 32; i++) {
       if (i === 8 || i === 12 || i === 16 || i === 20) {
         uuid += '-';
       }
-      const randomDigit = Math.random() * 16 | 0;
+      const randomDigit = (Math.random() * 16) | 0;
       if (i === 12) {
         uuid += '4';
       } else if (i === 16) {
-        uuid += (randomDigit & 3 | 8).toString(16);
+        uuid += ((randomDigit & 3) | 8).toString(16);
       } else {
         uuid += randomDigit.toString(16);
       }

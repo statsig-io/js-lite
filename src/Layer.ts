@@ -6,15 +6,15 @@ export type LogParameterFunction = (
 ) => void;
 
 export default class Layer {
-  private logParameterFunction: LogParameterFunction | null;
-  private name: string;
-  private value: Record<string, any>;
-  private ruleID: string;
-  private secondaryExposures: Record<string, string>[];
-  private undelegatedSecondaryExposures: Record<string, string>[];
-  private allocatedExperimentName: string;
-  private explicitParameters: string[];
-  private evaluationDetails: EvaluationDetails;
+  readonly _name: string;
+  readonly _value: Record<string, any>;
+  readonly _ruleID: string;
+  readonly _secondaryExposures: Record<string, string>[];
+  readonly _undelegatedSecondaryExposures: Record<string, string>[];
+  readonly _allocatedExperimentName: string;
+  readonly _explicitParameters: string[];
+  readonly _evaluationDetails: EvaluationDetails;
+  readonly _logParameterFunction: LogParameterFunction | null;
 
   private constructor(
     name: string,
@@ -27,18 +27,18 @@ export default class Layer {
     allocatedExperimentName: string = '',
     explicitParameters: string[] = [],
   ) {
-    this.logParameterFunction = logParameterFunction;
-    this.name = name;
-    this.value = JSON.parse(JSON.stringify(layerValue ?? {}));
-    this.ruleID = ruleID ?? '';
-    this.evaluationDetails = evaluationDetails;
-    this.secondaryExposures = secondaryExposures;
-    this.undelegatedSecondaryExposures = undelegatedSecondaryExposures;
-    this.allocatedExperimentName = allocatedExperimentName;
-    this.explicitParameters = explicitParameters;
+    this._logParameterFunction = logParameterFunction;
+    this._name = name;
+    this._value = JSON.parse(JSON.stringify(layerValue ?? {}));
+    this._ruleID = ruleID ?? '';
+    this._evaluationDetails = evaluationDetails;
+    this._secondaryExposures = secondaryExposures;
+    this._undelegatedSecondaryExposures = undelegatedSecondaryExposures;
+    this._allocatedExperimentName = allocatedExperimentName;
+    this._explicitParameters = explicitParameters;
   }
 
-  public static _create(
+  static _create(
     name: string,
     value: Record<string, any>,
     ruleID: string,
@@ -67,14 +67,14 @@ export default class Layer {
     defaultValue: T,
     typeGuard?: (value: unknown) => value is T,
   ): T {
-    const val = this.value[key];
+    const val = this._value[key];
 
     if (val == null) {
       return defaultValue;
     }
 
     const logAndReturn = () => {
-      this.logLayerParameterExposure(key);
+      this._logLayerParameterExposure(key);
       return val as unknown as T;
     };
 
@@ -104,47 +104,15 @@ export default class Layer {
       defaultValue = null;
     }
 
-    const val = this.value[key];
+    const val = this._value[key];
     if (val != null) {
-      this.logLayerParameterExposure(key);
+      this._logLayerParameterExposure(key);
     }
 
     return val ?? defaultValue;
   }
 
-  public getRuleID(): string {
-    return this.ruleID;
-  }
-
-  public getName(): string {
-    return this.name;
-  }
-
-  public getEvaluationDetails(): EvaluationDetails {
-    return this.evaluationDetails;
-  }
-
-  public _getSecondaryExposures(): Record<string, string>[] {
-    return this.secondaryExposures;
-  }
-
-  public _getUndelegatedSecondaryExposures(): Record<string, string>[] {
-    return this.undelegatedSecondaryExposures;
-  }
-
-  public _getAllocatedExperimentName(): string {
-    return this.allocatedExperimentName;
-  }
-
-  public _getExplicitParameters(): string[] {
-    return this.explicitParameters;
-  }
-
-  public _getEvaluationDetails(): EvaluationDetails {
-    return this.evaluationDetails;
-  }
-
-  private logLayerParameterExposure(parameterName: string) {
-    this.logParameterFunction?.(this, parameterName);
+  private _logLayerParameterExposure(parameterName: string) {
+    this._logParameterFunction?.(this, parameterName);
   }
 }

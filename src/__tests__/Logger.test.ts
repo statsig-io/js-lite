@@ -66,7 +66,7 @@ describe('Verify behavior of StatsigLogger', () => {
 
     // @ts-ignore trust me, the method exists
     const spyOnFailureLog = jest.spyOn(logger, 'newFailedRequest');
-    const spyOnErrorBoundary = jest.spyOn(client.getErrorBoundary(), 'logError');
+    const spyOnErrorBoundary = jest.spyOn(client.getErrorBoundary(), '_logError');
     return client.initializeAsync().then(async () => {
       logger.log(new LogEvent('event'));
       logger.log(new LogEvent('event'));
@@ -223,7 +223,7 @@ describe('Verify behavior of StatsigLogger', () => {
 
     expect(spyOnLog).toHaveBeenCalledTimes(1);
     const event = new LogEvent('statsig::diagnostics');
-    event.setMetadata({
+    event._setMetadata({
       context: 'initialize',
       markers: [
         {
@@ -273,7 +273,7 @@ describe('Verify behavior of StatsigLogger', () => {
         is_delta: false,
       },
     });
-    event.setUser({ userID: 'user_key' });
+    event._setUser({ userID: 'user_key' });
     expect(spyOnLog).toHaveBeenCalledWith(event);
   });
 });

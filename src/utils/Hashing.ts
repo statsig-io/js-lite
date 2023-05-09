@@ -7,7 +7,7 @@ export function SimpleHash(value: string): string {
     hash = (hash << 5) - hash + character;
     hash = hash & hash; // Convert to 32bit integer
   }
-  return String(hash);
+  return String(hash >>> 0);
 }
 
 export function getHashValue(value: string): string {

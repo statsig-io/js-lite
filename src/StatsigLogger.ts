@@ -1,6 +1,9 @@
-import LogEvent from './LogEvent';
-import { IHasStatsigInternal } from './StatsigClient';
-import { StatsigEndpoint } from './StatsigNetwork';
+import ErrorBoundary from './ErrorBoundary';
+import type { LogEvent } from './LogEvent';
+import makeLogEvent from './LogEvent';
+import Identity from './StatsigIdentity';
+import StatsigNetwork, { StatsigEndpoint } from './StatsigNetwork';
+import StatsigSDKOptions from './StatsigSDKOptions';
 import { EvaluationDetails } from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
 import { STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY } from './utils/Constants';
@@ -26,10 +29,12 @@ const MS_RETRY_LOGS_CUTOFF = 5 * 24 * 60 * 60 * 1000;
 const MAX_BATCHES_TO_RETRY = 100;
 const MAX_FAILED_EVENTS = 1000;
 const MAX_LOCAL_STORAGE_SIZE = 1024 * MAX_FAILED_EVENTS;
-const MAX_ERRORS_TO_LOG = 10;
 
 export default class StatsigLogger {
-  private sdkInternal: IHasStatsigInternal;
+  private readonly _options: StatsigSDKOptions;
+  private readonly _identity: Identity;
+  private readonly _network: StatsigNetwork;
+  private readonly _errorBoundary: ErrorBoundary;
 
   private queue: object[];
 
@@ -39,8 +44,16 @@ export default class StatsigLogger {
   private exposureDedupeKeys: Record<string, number>;
   private failedLogEventCount = 0;
 
-  public constructor(sdkInternal: IHasStatsigInternal) {
-    this.sdkInternal = sdkInternal;
+  public constructor(
+    options: StatsigSDKOptions,
+    identity: Identity,
+    network: StatsigNetwork,
+    errorBoundary: ErrorBoundary,
+  ) {
+    this._options = options;
+    this._identity = identity;
+    this._network = network;
+    this._errorBoundary = errorBoundary;
 
     this.queue = [];
     this.flushInterval = null;
@@ -49,51 +62,13 @@ export default class StatsigLogger {
     this.failedLogEvents = [];
     this.exposureDedupeKeys = {};
     this.failedLogEventCount = 0;
-    this.init();
-  }
-
-  private init(): void {
-    if (
-      typeof window !== 'undefined' &&
-      typeof window.addEventListener === 'function'
-    ) {
-      window.addEventListener('blur', () => this.flush(true));
-      window.addEventListener('beforeunload', () => this.flush(true));
-      window.addEventListener('load', () => {
-        setTimeout(() => this.flush(), 100);
-        setTimeout(() => this.flush(), 1000);
-      });
-    }
-    if (
-      typeof document !== 'undefined' &&
-      typeof document.addEventListener === 'function'
-    ) {
-      document.addEventListener('visibilitychange', () => {
-        this.flush(document.visibilityState !== 'visible');
-      });
-    }
-    if (!this.sdkInternal.getOptions().getIgnoreWindowUndefined() && (typeof window === 'undefined' || window == null)) {
-      // dont set the flush interval outside of client browser environments
-      return;
-    }
-    if (this.sdkInternal.getOptions().getLocalModeEnabled()) {
-      // unnecessary interval in local mode since logs dont flush anyway
-      return;
-    }
-    const me = this;
-    this.flushInterval = setInterval(() => {
-      me.flush();
-    }, this.sdkInternal.getOptions().getLoggingIntervalMillis());
-
-    // Quick flush
-    setTimeout(() => this.flush(), 100);
-    setTimeout(() => this.flush(), 1000);
+    this._init();
   }
 
   public log(event: LogEvent): void {
     try {
       if (
-        !this.sdkInternal.getOptions().getDisableCurrentPageLogging() &&
+        !this._options.disableCurrentPageLogging &&
         typeof window !== 'undefined' &&
         window != null &&
         typeof window.location === 'object' &&
@@ -102,37 +77,20 @@ export default class StatsigLogger {
         // https://stackoverflow.com/questions/6257463/how-to-get-the-url-without-any-parameters-in-javascript
         const parts = window.location.href.split(/[?#]/);
         if (parts?.length > 0) {
-          event.addStatsigMetadata('currentPage', parts[0]);
+          event.statsigMetadata.currentPage = parts[0];
         }
       }
-    } catch (_e) { }
+    } catch (_e) {}
 
-    this.queue.push(event.toJsonObject());
+    this.queue.push(event);
 
-    if (
-      this.queue.length >=
-      this.sdkInternal.getOptions().getLoggingBufferMaxSize()
-    ) {
+    if (this.queue.length >= this._options.loggingBufferMaxSize) {
       this.flush();
     }
   }
 
   public resetDedupeKeys() {
     this.exposureDedupeKeys = {};
-  }
-
-  private shouldLogExposure(key: string): boolean {
-    const lastTime = this.exposureDedupeKeys[key];
-    const now = Date.now();
-    if (lastTime == null) {
-      this.exposureDedupeKeys[key] = now;
-      return true;
-    }
-    if (lastTime >= now - 600 * 1000) {
-      return false;
-    }
-    this.exposureDedupeKeys[key] = now;
-    return true;
   }
 
   public logGateExposure(
@@ -145,7 +103,7 @@ export default class StatsigLogger {
     isManualExposure: boolean,
   ) {
     const dedupeKey = gateName + String(gateValue) + ruleID + details.reason;
-    if (!this.shouldLogExposure(dedupeKey)) {
+    if (!this._shouldLogExposure(dedupeKey)) {
       return;
     }
 
@@ -161,10 +119,14 @@ export default class StatsigLogger {
       metadata['isManualExposure'] = 'true';
     }
 
-    const gateExposure = new LogEvent(GATE_EXPOSURE_EVENT);
-    gateExposure.setUser(user);
-    gateExposure.setMetadata(metadata);
-    gateExposure.setSecondaryExposures(secondaryExposures);
+    const gateExposure = makeLogEvent(
+      GATE_EXPOSURE_EVENT,
+      user,
+      this._identity._statsigMetadata,
+      null,
+      metadata,
+      secondaryExposures,
+    );
     this.log(gateExposure);
   }
 
@@ -177,7 +139,7 @@ export default class StatsigLogger {
     isManualExposure: boolean,
   ) {
     const dedupeKey = configName + ruleID + details.reason;
-    if (!this.shouldLogExposure(dedupeKey)) {
+    if (!this._shouldLogExposure(dedupeKey)) {
       return;
     }
 
@@ -192,10 +154,14 @@ export default class StatsigLogger {
       metadata['isManualExposure'] = 'true';
     }
 
-    const configExposure = new LogEvent(CONFIG_EXPOSURE_EVENT);
-    configExposure.setUser(user);
-    configExposure.setMetadata(metadata);
-    configExposure.setSecondaryExposures(secondaryExposures);
+    const configExposure = makeLogEvent(
+      CONFIG_EXPOSURE_EVENT,
+      user,
+      this._identity._statsigMetadata,
+      null,
+      metadata,
+      secondaryExposures,
+    );
     this.log(configExposure);
   }
 
@@ -219,7 +185,7 @@ export default class StatsigLogger {
       details.reason,
     ].join('|');
 
-    if (!this.shouldLogExposure(dedupeKey)) {
+    if (!this._shouldLogExposure(dedupeKey)) {
       return;
     }
 
@@ -237,10 +203,14 @@ export default class StatsigLogger {
       metadata['isManualExposure'] = 'true';
     }
 
-    const configExposure = new LogEvent(LAYER_EXPOSURE_EVENT);
-    configExposure.setUser(user);
-    configExposure.setMetadata(metadata);
-    configExposure.setSecondaryExposures(secondaryExposures);
+    const configExposure = makeLogEvent(
+      LAYER_EXPOSURE_EVENT,
+      user,
+      this._identity._statsigMetadata,
+      null,
+      metadata,
+      secondaryExposures,
+    );
     this.log(configExposure);
   }
 
@@ -249,20 +219,15 @@ export default class StatsigLogger {
     message: string,
     metadata: object,
   ): void {
-    const defaultValueEvent = new LogEvent(DEFAULT_VALUE_WARNING);
-    defaultValueEvent.setUser(user);
-    defaultValueEvent.setValue(message);
-    defaultValueEvent.setMetadata(metadata);
+    const defaultValueEvent = makeLogEvent(
+      DEFAULT_VALUE_WARNING,
+      user,
+      this._identity._statsigMetadata,
+      message,
+      metadata,
+    );
     this.log(defaultValueEvent);
     this.loggedErrors.add(message);
-  }
-
-
-  public logDiagnostics(user: StatsigUser | null, diagnostics: Diagnostics) {
-    const latencyEvent = new LogEvent(DIAGNOSTICS_EVENT);
-    latencyEvent.setUser(user);
-    latencyEvent.setMetadata(diagnostics.getMarkers());
-    this.log(latencyEvent);
   }
 
   public shutdown(): void {
@@ -279,43 +244,43 @@ export default class StatsigLogger {
       return;
     }
 
+    const statsigMetadata = this._identity._statsigMetadata;
     const oldQueue = this.queue;
     this.queue = [];
     if (
       isClosing &&
-      !this.sdkInternal.getNetwork().supportsKeepalive() &&
+      !this._network.supportsKeepalive() &&
       typeof navigator !== 'undefined' &&
       navigator != null &&
       // @ts-ignore
       navigator.sendBeacon
     ) {
-      const beacon = this.sdkInternal.getNetwork().sendLogBeacon({
+      const beacon = this._network.sendLogBeacon({
         events: oldQueue,
-        statsigMetadata: this.sdkInternal.getStatsigMetadata(),
+        statsigMetadata,
       });
       if (!beacon) {
         this.queue = oldQueue.concat(this.queue);
         if (this.queue.length > 0) {
-          this.addFailedRequest({
+          this._addFailedRequest({
             events: this.queue,
-            statsigMetadata: this.sdkInternal.getStatsigMetadata(),
+            statsigMetadata,
             time: Date.now(),
           });
           this.queue = [];
         }
-        this.saveFailedRequests();
+        this._saveFailedRequests();
       }
       return;
     }
 
     const processor = this;
-    this.sdkInternal
-      .getNetwork()
+    this._network
       .postToEndpoint(
         StatsigEndpoint.Rgstr,
         {
           events: oldQueue,
-          statsigMetadata: this.sdkInternal.getStatsigMetadata(),
+          statsigMetadata,
         },
         3 /* retries */,
         1000 /* backoff */,
@@ -329,57 +294,42 @@ export default class StatsigLogger {
       .catch((error) => {
         if (typeof error.text === 'function') {
           error.text().then((errorText: string) => {
-            this.sdkInternal
-              .getErrorBoundary()
-              .logError(LOG_FAILURE_EVENT, error, async () => {
+            this._errorBoundary._logError(
+              LOG_FAILURE_EVENT,
+              error,
+              async () => {
                 return {
                   eventCount: oldQueue.length,
                   error: errorText,
                 };
-              });
+              },
+            );
           });
         } else {
-          this.sdkInternal
-            .getErrorBoundary()
-            .logError(LOG_FAILURE_EVENT, error, async () => {
-              return {
-                eventCount: oldQueue.length,
-                error: error.message,
-              };
-            });
+          this._errorBoundary._logError(LOG_FAILURE_EVENT, error, async () => {
+            return {
+              eventCount: oldQueue.length,
+              error: error.message,
+            };
+          });
         }
-        processor.newFailedRequest(LOG_FAILURE_EVENT, oldQueue);
+        processor._newFailedRequest(LOG_FAILURE_EVENT, oldQueue);
       })
       .finally(async () => {
-
         if (isClosing) {
           if (this.queue.length > 0) {
-            this.addFailedRequest({
+            this._addFailedRequest({
               events: this.queue,
-              statsigMetadata: this.sdkInternal.getStatsigMetadata(),
+              statsigMetadata,
               time: Date.now(),
             });
 
             // on app background/window blur, save unsent events as a request and clean up the queue (in case app foregrounds)
             this.queue = [];
           }
-          await processor.saveFailedRequests();
+          await processor._saveFailedRequests();
         }
       });
-  }
-
-  private async saveFailedRequests(): Promise<void> {
-    if (this.failedLogEvents.length > 0) {
-      const requestsCopy = JSON.stringify(this.failedLogEvents);
-      if (requestsCopy.length > MAX_LOCAL_STORAGE_SIZE) {
-        this.clearLocalStorageRequests();
-        return;
-      }
-      StatsigLocalStorage.setItem(
-        STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY,
-        requestsCopy,
-      );
-    }
   }
 
   public async sendSavedRequests(): Promise<void> {
@@ -389,7 +339,7 @@ export default class StatsigLogger {
       STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY,
     );
     if (failedRequests == null) {
-      this.clearLocalStorageRequests();
+      this._clearLocalStorageRequests();
       return;
     }
     if (failedRequests.length > MAX_LOCAL_STORAGE_SIZE) {
@@ -404,8 +354,7 @@ export default class StatsigLogger {
           requestBody.events &&
           Array.isArray(requestBody.events)
         ) {
-          this.sdkInternal
-            .getNetwork()
+          this._network
             .postToEndpoint(StatsigEndpoint.Rgstr, requestBody)
             .then((response) => {
               if (!response.ok) {
@@ -416,17 +365,86 @@ export default class StatsigLogger {
               if (fireAndForget) {
                 return;
               }
-              this.addFailedRequest(requestBody);
+              this._addFailedRequest(requestBody);
             });
         }
       }
     } catch (_e) {
     } finally {
-      this.clearLocalStorageRequests();
+      this._clearLocalStorageRequests();
     }
   }
 
-  private addFailedRequest(requestBody: FailedLogEventBody): void {
+  private _init(): void {
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.addEventListener === 'function'
+    ) {
+      window.addEventListener('blur', () => this.flush(true));
+      window.addEventListener('beforeunload', () => this.flush(true));
+      window.addEventListener('load', () => {
+        setTimeout(() => this.flush(), 100);
+        setTimeout(() => this.flush(), 1000);
+      });
+    }
+    if (
+      typeof document !== 'undefined' &&
+      typeof document.addEventListener === 'function'
+    ) {
+      document.addEventListener('visibilitychange', () => {
+        this.flush(document.visibilityState !== 'visible');
+      });
+    }
+    if (
+      !this._options.ignoreWindowUndefined &&
+      (typeof window === 'undefined' || window == null)
+    ) {
+      // dont set the flush interval outside of client browser environments
+      return;
+    }
+    if (this._options.localMode) {
+      // unnecessary interval in local mode since logs dont flush anyway
+      return;
+    }
+    const me = this;
+    this.flushInterval = setInterval(() => {
+      me.flush();
+    }, this._options.loggingIntervalMillis);
+
+    // Quick flush
+    setTimeout(() => this.flush(), 100);
+    setTimeout(() => this.flush(), 1000);
+  }
+
+  private _shouldLogExposure(key: string): boolean {
+    const lastTime = this.exposureDedupeKeys[key];
+    const now = Date.now();
+    if (lastTime == null) {
+      this.exposureDedupeKeys[key] = now;
+      return true;
+    }
+    if (lastTime >= now - 600 * 1000) {
+      return false;
+    }
+    this.exposureDedupeKeys[key] = now;
+    return true;
+  }
+
+  private async _saveFailedRequests(): Promise<void> {
+    if (this.failedLogEvents.length > 0) {
+      const requestsCopy = JSON.stringify(this.failedLogEvents);
+      if (requestsCopy.length > MAX_LOCAL_STORAGE_SIZE) {
+        this._clearLocalStorageRequests();
+        return;
+      }
+      StatsigLocalStorage.setItem(
+        STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY,
+        requestsCopy,
+      );
+    }
+  }
+
+  private _addFailedRequest(requestBody: FailedLogEventBody): void {
     if (requestBody.time < Date.now() - MS_RETRY_LOGS_CUTOFF) {
       return;
     }
@@ -441,11 +459,11 @@ export default class StatsigLogger {
     this.failedLogEventCount += additionalEvents;
   }
 
-  private clearLocalStorageRequests(): void {
+  private _clearLocalStorageRequests(): void {
     StatsigLocalStorage.removeItem(STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY);
   }
 
-  private newFailedRequest(name: string, queue: object[]): void {
+  private _newFailedRequest(name: string, queue: object[]): void {
     if (this.loggedErrors.has(name)) {
       return;
     }
@@ -453,10 +471,10 @@ export default class StatsigLogger {
 
     this.failedLogEvents.push({
       events: queue,
-      statsigMetadata: this.sdkInternal.getStatsigMetadata(),
+      statsigMetadata: this._identity._statsigMetadata,
       time: Date.now(),
     });
 
-    this.saveFailedRequests();
+    this._saveFailedRequests().then(() => {});
   }
 }

@@ -7,15 +7,11 @@
     "outDir": "dist",
     "sourceMap": false,
     "esModuleInterop": true,
-    "declaration": false,
+    "declaration": true,
     "skipLibCheck": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "types": [
-      "@types/webpack-env",
-      "node",
-      "jest",
-    ],
+    "types": ["@types/webpack-env", "node", "jest"]
   },
   "include": ["src/**/*", "src/utils/*"],
   "exclude": [

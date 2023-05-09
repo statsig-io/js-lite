@@ -45,7 +45,7 @@ describe('ErrorBoundary', () => {
 
   it('recovers from error and returns result', () => {
     let called = false;
-    const result = boundary.capture(
+    const result = boundary._capture(
       '',
       () => {
         throw new URIError();
@@ -61,7 +61,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('recovers from error and returns result', async () => {
-    const result = await boundary.capture(
+    const result = await boundary._capture(
       '',
       () => Promise.reject(Error('bad')),
       () => Promise.resolve('good'),
@@ -71,7 +71,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('returns successful results when there is no crash', async () => {
-    const result = await boundary.capture(
+    const result = await boundary._capture(
       '',
       () => Promise.resolve('success'),
       () => Promise.resolve('failure'),
@@ -82,7 +82,7 @@ describe('ErrorBoundary', () => {
 
   it('logs errors correctly', () => {
     const err = new URIError();
-    boundary.swallow('', () => {
+    boundary._swallow('', () => {
       throw err;
     });
 
@@ -98,7 +98,7 @@ describe('ErrorBoundary', () => {
 
   it('logs error-ish correctly', () => {
     const err = { 'sort-of-an-error': 'but-not-really' };
-    boundary.swallow('', () => {
+    boundary._swallow('', () => {
       throw err;
     });
 
@@ -112,7 +112,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('logs tags correctly', () => {
-    boundary.swallow('aCustomTag', () => {
+    boundary._swallow('aCustomTag', () => {
       throw new Error();
     });
 
@@ -125,7 +125,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('logs the correct headers', () => {
-    boundary.swallow('', () => {
+    boundary._swallow('', () => {
       throw new Error();
     });
 
@@ -140,9 +140,9 @@ describe('ErrorBoundary', () => {
 
   it('logs statsig metadata', () => {
     const metadata = { sdkType: 'js-client', sdkVersion: '1.2.3' };
-    boundary.setStatsigMetadata(metadata);
+    boundary._setStatsigMetadata(metadata);
 
-    boundary.swallow('', () => {
+    boundary._swallow('', () => {
       throw new Error();
     });
 
@@ -161,13 +161,13 @@ describe('ErrorBoundary', () => {
   });
 
   it('logs the same error only once', () => {
-    boundary.swallow('', () => {
+    boundary._swallow('', () => {
       throw new Error();
     });
 
     expect(request.length).toEqual(1);
 
-    boundary.swallow('', () => {
+    boundary._swallow('', () => {
       throw new Error();
     });
 
@@ -176,13 +176,13 @@ describe('ErrorBoundary', () => {
 
   it('does not catch intended errors', () => {
     expect(() => {
-      boundary.swallow('', () => {
+      boundary._swallow('', () => {
         throw new StatsigUninitializedError('uninit');
       });
     }).toThrow('uninit');
 
     expect(() => {
-      boundary.swallow('', () => {
+      boundary._swallow('', () => {
         throw new StatsigInvalidArgumentError('bad arg');
       });
     }).toThrow('bad arg');

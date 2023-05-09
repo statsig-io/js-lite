@@ -1,9 +1,10 @@
 const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
 const CircularDependencyPlugin = require('circular-dependency-plugin');
+const mangleConfig = require('./mangle.config');
 
 module.exports = {
-  entry: "./src/index.ts",
+  entry: './src/index.ts',
   mode: 'production',
   target: 'web',
   module: {
@@ -40,7 +41,7 @@ module.exports = {
       failOnError: true,
       allowAsyncCycles: false,
       cwd: process.cwd(),
-    })
+    }),
   ],
   optimization: {
     minimize: true,
@@ -50,10 +51,12 @@ module.exports = {
         terserOptions: {
           mangle: {
             properties: {
-              reserved: ['driveTo'],
+              reserved: mangleConfig.reserved,
+              regex: mangleConfig.regex,
+              keep_quoted: true,
             },
           },
-        }
+        },
       }),
     ],
   },
