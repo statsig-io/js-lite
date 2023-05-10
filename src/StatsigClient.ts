@@ -269,6 +269,7 @@ export default class StatsigClient implements IStatsig {
         }
 
         this._identity._user = this._normalizeUser(user);
+        this._store.updateUser();
         this._logger.resetDedupeKeys();
 
         if (this._pendingInitPromise != null) {

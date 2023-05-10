@@ -104,9 +104,9 @@ export default class StatsigStore {
     }
   }
 
-  public updateUser(isUserPrefetched: boolean): number | null {
+  public updateUser(): number | null {
     this._userCacheKey = this._identity.getUserCacheKey();
-    return this._setUserValueFromCache(isUserPrefetched);
+    return this._setUserValueFromCache();
   }
 
   public bootstrap(initializeValues: Record<string, any>): void {
@@ -261,9 +261,7 @@ export default class StatsigStore {
     }
   }
 
-  private _setUserValueFromCache(
-    isUserPrefetched: boolean = false,
-  ): number | null {
+  private _setUserValueFromCache(): number | null {
     let cachedValues = this._values[this._userCacheKey];
     if (cachedValues == null) {
       this._resetUserValues();
@@ -272,9 +270,7 @@ export default class StatsigStore {
     }
 
     this._userValues = cachedValues;
-    this._reason = isUserPrefetched
-      ? EvaluationReason.Prefetch
-      : EvaluationReason.Cache;
+    this._reason = EvaluationReason.Cache;
 
     return cachedValues.evaluation_time ?? 0;
   }
