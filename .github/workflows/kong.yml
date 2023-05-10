@@ -26,11 +26,11 @@ jobs:
       - name: Install Deps
         run: npm install
 
-      - name: Setup JS SDK
-        run: npm run kong -- setup js -v
+      - name: Setup JS Lite SDK
+        run: npm run kong -- setup js-lite -v
 
       - name: Build Bridge Image
-        run: npm run kong -- build js -v
+        run: npm run kong -- build js-lite -v
 
       - name: Run Tests
-        run: npm run kong -- test js -v -r
+        run: npm run kong -- test js-lite -v -r
