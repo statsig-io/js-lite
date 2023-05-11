@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  jest:
+  build:
     runs-on: ubuntu-20.04
     timeout-minutes: 5
     steps:
@@ -23,4 +23,4 @@ jobs:
       - run: npm run build:dryrun
       - name: Build Size Check
         run: |
-          [[ $(stat -f%z "build/statsig-prod-web-sdk.js"  ) -gt 1200 ]] && echo "File is bigger than 50kb" && exit 1
+          [[ $(stat -f%z "build/statsig-prod-web-sdk.js"  ) -gt 51200 ]] && echo "File is bigger than 50kb" && exit 1
