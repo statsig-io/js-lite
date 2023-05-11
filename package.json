@@ -11,7 +11,8 @@
     "testForGithubOrRedisEnthusiasts": "jest",
     "test:watch": "jest --watch",
     "build:dryrun": "npx tsc --noEmit",
-    "types": "npx tsc"
+    "types": "npx tsc",
+    "size-check": "./bundle-size-check.js"
   },
   "files": [
     "build/statsig-prod-web-sdk.js",
