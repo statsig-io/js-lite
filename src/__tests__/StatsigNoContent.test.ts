@@ -2,8 +2,8 @@
  * @jest-environment jsdom
  */
 
+import { EvaluationReason } from '..';
 import StatsigClient from '../StatsigClient';
-import Statsig, { EvaluationReason } from '..';
 
 describe('Verify behavior of StatsigClient when 204 returned from initialize', () => {
   const sdkKey = 'client-clienttestkey';
@@ -26,13 +26,13 @@ describe('Verify behavior of StatsigClient when 204 returned from initialize', (
         Promise.resolve(
           JSON.stringify({
             feature_gates: {
-              'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+              '3114454104': {
                 value: true,
                 rule_id: 'ruleID123',
               },
             },
             dynamic_configs: {
-              'RMv0YJlLOBe7cY7HgZ3Jox34R0Wrk7jLv3DZyBETA7I=': {
+              '3591394191': {
                 value: {
                   num: 4,
                 },
@@ -47,8 +47,6 @@ describe('Verify behavior of StatsigClient when 204 returned from initialize', (
   beforeEach(() => {
     jest.resetModules();
     parsedRequestBody = null;
-
-    Statsig.encodeIntializeCall = false;
   });
 
   test('Test status 204 response is a noop', async () => {
@@ -58,6 +56,6 @@ describe('Verify behavior of StatsigClient when 204 returned from initialize', (
 
     expect(statsig.checkGate('test_gate')).toBe(false);
     // @ts-ignore
-    expect(statsig.getStore().reason).toBe(EvaluationReason.NetworkNotModified);
+    expect(statsig._store._reason).toBe(EvaluationReason.NetworkNotModified);
   });
 });

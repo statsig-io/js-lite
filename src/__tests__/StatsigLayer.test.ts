@@ -3,7 +3,6 @@
  */
 import StatsigClient from '../StatsigClient';
 import { getHashValue } from '../utils/Hashing';
-import StatsigAsyncStorage from '../utils/StatsigAsyncStorage';
 import LocalStorageMock from './LocalStorageMock';
 
 const configKey = 'a_config';
@@ -88,54 +87,11 @@ describe('Statsig Layers', () => {
     await client.initializeAsync();
   });
 
-  afterEach(() => {
-    // @ts-ignore
-    (StatsigAsyncStorage as any).asyncStorage = null;
-  });
-
   it('returns experiment values when allocated', () => {
     let config = client.getLayer(layerConfigWithExperimentKey);
     expect(config.get('a_key', 'ERR')).toBe('a_config_value');
 
     let another = client.getLayer(layerConfigWithoutExperimentKey);
     expect(another.get('a_key', 'ERR')).toBe('another_layer_default_value');
-  });
-
-  it('returns a sticky value', async () => {
-    let config = client.getLayer(layerConfigWithExperimentKey, true);
-    expect(config.get('a_key', 'ERR')).toBe('a_config_value');
-
-    const data = JSON.parse(JSON.stringify(initialResponse));
-    data['layer_configs'][hashedLayerConfigWithExperimentKey] = {
-      name: hashedLayerConfigWithExperimentKey,
-      rule_id: 'default',
-      value: { a_key: 'another_value' },
-      is_user_in_experiment: true,
-      is_experiment_active: true,
-      allocated_experiment_name: hashedAnotherConfigKey,
-    };
-    await client.getStore().save(client.getCurrentUser(), data);
-
-    config = client.getLayer(layerConfigWithExperimentKey, true);
-    expect(config.get('a_key', 'ERR')).toBe('a_config_value');
-  });
-
-  it('wipes the sticky value when keepDeviceValue is false', async () => {
-    let config = client.getLayer(layerConfigWithExperimentKey, true);
-    expect(config.get('a_key', 'ERR')).toBe('a_config_value');
-
-    const data = JSON.parse(JSON.stringify(initialResponse));
-    data['layer_configs'][hashedLayerConfigWithExperimentKey] = {
-      name: hashedLayerConfigWithExperimentKey,
-      rule_id: 'default',
-      value: { a_key: 'another_value' },
-      is_user_in_experiment: true,
-      is_experiment_active: true,
-      allocated_experiment_name: hashedAnotherConfigKey,
-    };
-    await client.getStore().save(client.getCurrentUser(), data);
-
-    config = client.getLayer(layerConfigWithExperimentKey, false);
-    expect(config.get('a_key', 'ERR')).toBe('another_value');
   });
 });

@@ -10,7 +10,7 @@ import LocalStorageMock from './LocalStorageMock';
 describe('Verify local storage limits are enforced', () => {
   const sdkKey = 'client-internalstorekey';
   const gates = {
-    'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+    '3114454104': {
       value: true,
       rule_id: 'ruleID12',
       secondary_exposures: [
@@ -23,7 +23,7 @@ describe('Verify local storage limits are enforced', () => {
     },
   };
   const configs = {
-    'RMv0YJlLOBe7cY7HgZ3Jox34R0Wrk7jLv3DZyBETA7I=': {
+    '3591394191': {
       value: { bool: true },
       rule_id: 'default',
       secondary_exposures: [
@@ -50,7 +50,7 @@ describe('Verify local storage limits are enforced', () => {
         Promise.resolve(
           JSON.stringify({
             feature_gates: {
-              'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+              '3114454104': {
                 value: true,
                 rule_id: 'ruleID123',
               },
@@ -144,11 +144,11 @@ describe('Verify local storage limits are enforced', () => {
     );
   });
 
-  test.only('Verify loading a large list gets truncated', async () => {
-    expect.assertions(17);
+  test('Verify loading a large list gets truncated', async () => {
+    expect.assertions(16);
     const client = new StatsigClient(sdkKey, null);
     await client.initializeAsync();
-    const store = client.getStore();
+    const store = client._store;
     expect(store).not.toBeNull();
     const storeObject = JSON.parse(
       localStorage.getItem(INTERNAL_STORE_KEY) ?? '',
@@ -207,7 +207,7 @@ describe('Verify local storage limits are enforced', () => {
     ).toEqual(10);
 
     expect(
-      client.getCurrentUserCacheKey() in
+      client._identity.getUserCacheKey() in
         JSON.parse(localStorage.getItem(INTERNAL_STORE_KEY) ?? ''),
     ).toBeTruthy();
 
@@ -231,8 +231,5 @@ describe('Verify local storage limits are enforced', () => {
     ).toEqual(10);
 
     noStorageClient.shutdown();
-
-    // we clear out the local storage after this session if shutdown is called with disableLocalStorage
-    expect(localStorage.getItem(INTERNAL_STORE_KEY)).toBeNull();
   });
 });

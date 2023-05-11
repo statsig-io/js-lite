@@ -2,9 +2,9 @@
  * @jest-environment jsdom
  */
 
-import Statsig from '..';
 import StatsigClient from '../StatsigClient';
 import { EvaluationReason } from '../StatsigStore';
+import { getHashValue } from '../utils/Hashing';
 import * as TestData from './initialize_response.json';
 import LocalStorageMock from './LocalStorageMock';
 
@@ -28,13 +28,13 @@ describe('Statsig Client Bootstrapping', () => {
         Promise.resolve(
           JSON.stringify({
             feature_gates: {
-              'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+              [getHashValue('test_gate')]: {
                 value: true,
                 rule_id: 'ruleID123',
               },
             },
             dynamic_configs: {
-              'RMv0YJlLOBe7cY7HgZ3Jox34R0Wrk7jLv3DZyBETA7I=': {
+              [getHashValue('test_config')]: {
                 value: {
                   num: 4,
                 },
@@ -54,8 +54,6 @@ describe('Statsig Client Bootstrapping', () => {
   beforeEach(() => {
     jest.resetModules();
     parsedRequestBody = null;
-
-    Statsig.encodeIntializeCall = false;
     window.localStorage.clear();
   });
 
@@ -73,7 +71,7 @@ describe('Statsig Client Bootstrapping', () => {
     expect(client.checkGate('always_on_gate')).toBe(true);
     expect(client.checkGate('on_for_statsig_email')).toBe(true);
     expect(client.getConfig('test_config').get('number', 10)).toEqual(7);
-    expect(client.getConfig('test_config').getEvaluationDetails()).toEqual({
+    expect(client.getConfig('test_config')._evaluationDetails).toEqual({
       reason: EvaluationReason.Bootstrap,
       time: expect.any(Number),
     });
@@ -107,7 +105,6 @@ describe('Statsig Client Bootstrapping', () => {
       // optimal parameters to skip local storage entirely
       {
         initializeValues: {},
-        disableLocalOverrides: true,
         overrideStableID: '999',
       },
     );
@@ -119,14 +116,15 @@ describe('Statsig Client Bootstrapping', () => {
     expect(client.checkGate('always_on_gate')).toBe(false);
     expect(client.checkGate('on_for_statsig_email')).toBe(false);
     expect(client.getConfig('test_config').get('number', 10)).toEqual(10);
-    expect(client.getConfig('test_config').getEvaluationDetails()).toEqual({
+    expect(client.getConfig('test_config')._evaluationDetails).toEqual({
       reason: EvaluationReason.Unrecognized,
       time: expect.any(Number),
     });
   });
 
   it('bootstrapping calls local storage for overrides and stableID', async () => {
-    expect.assertions(2);
+    expect.assertions(3);
+
     const spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
     const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
 
@@ -136,9 +134,11 @@ describe('Statsig Client Bootstrapping', () => {
       // default parameters dont skip local storage get calls
       { initializeValues: {} },
     );
+
     expect(spyOnSet).not.toHaveBeenCalled();
-    // overrides and stableid
-    expect(spyOnGet).toHaveBeenCalledTimes(2);
+
+    expect(spyOnGet).toHaveBeenCalledTimes(1);
+    expect(spyOnGet).toHaveBeenCalledWith('STATSIG_STABLE_ID');
   });
 
   it('reports InvalidBootstrap', () => {
@@ -153,9 +153,7 @@ describe('Statsig Client Bootstrapping', () => {
       },
     );
 
-    expect(
-      client.getConfig('test_config').getEvaluationDetails(),
-    ).toMatchObject({
+    expect(client.getConfig('test_config')._evaluationDetails).toMatchObject({
       reason: EvaluationReason.InvalidBootstrap,
     });
   });

@@ -35,13 +35,12 @@ export default class StatsigLogger {
   private readonly _network: StatsigNetwork;
   private readonly _errorBoundary: ErrorBoundary;
 
-  private queue: object[];
-
-  private flushInterval: ReturnType<typeof setInterval> | null;
-  private loggedErrors: Set<string>;
-  private failedLogEvents: FailedLogEventBody[];
-  private exposureDedupeKeys: Record<string, number>;
-  private failedLogEventCount = 0;
+  private _queue: object[];
+  private _flushInterval: ReturnType<typeof setInterval> | null;
+  private _loggedErrors: Set<string>;
+  private _failedLogEvents: FailedLogEventBody[];
+  private _exposureDedupeKeys: Record<string, number>;
+  private _failedLogEventCount = 0;
 
   public constructor(
     options: StatsigSDKOptions,
@@ -54,13 +53,13 @@ export default class StatsigLogger {
     this._network = network;
     this._errorBoundary = errorBoundary;
 
-    this.queue = [];
-    this.flushInterval = null;
-    this.loggedErrors = new Set();
+    this._queue = [];
+    this._flushInterval = null;
+    this._loggedErrors = new Set();
 
-    this.failedLogEvents = [];
-    this.exposureDedupeKeys = {};
-    this.failedLogEventCount = 0;
+    this._failedLogEvents = [];
+    this._exposureDedupeKeys = {};
+    this._failedLogEventCount = 0;
     this._init();
   }
 
@@ -81,15 +80,15 @@ export default class StatsigLogger {
       }
     } catch (_e) {}
 
-    this.queue.push(event);
+    this._queue.push(event);
 
-    if (this.queue.length >= this._options.loggingBufferMaxSize) {
+    if (this._queue.length >= this._options.loggingBufferMaxSize) {
       this.flush();
     }
   }
 
   public resetDedupeKeys() {
-    this.exposureDedupeKeys = {};
+    this._exposureDedupeKeys = {};
   }
 
   public logGateExposure(
@@ -226,26 +225,26 @@ export default class StatsigLogger {
       metadata,
     );
     this.log(defaultValueEvent);
-    this.loggedErrors.add(message);
+    this._loggedErrors.add(message);
   };
 
   public shutdown(): void {
-    if (this.flushInterval) {
-      clearInterval(this.flushInterval);
-      this.flushInterval = null;
+    if (this._flushInterval) {
+      clearInterval(this._flushInterval);
+      this._flushInterval = null;
     }
 
     this.flush(true);
   }
 
   public flush(isClosing: boolean = false): void {
-    if (this.queue.length === 0) {
+    if (this._queue.length === 0) {
       return;
     }
 
     const statsigMetadata = this._identity._statsigMetadata;
-    const oldQueue = this.queue;
-    this.queue = [];
+    const oldQueue = this._queue;
+    this._queue = [];
     if (
       isClosing &&
       !this._network.supportsKeepalive() &&
@@ -259,14 +258,14 @@ export default class StatsigLogger {
         statsigMetadata,
       });
       if (!beacon) {
-        this.queue = oldQueue.concat(this.queue);
-        if (this.queue.length > 0) {
+        this._queue = oldQueue.concat(this._queue);
+        if (this._queue.length > 0) {
           this._addFailedRequest({
-            events: this.queue,
+            events: this._queue,
             statsigMetadata,
             time: Date.now(),
           });
-          this.queue = [];
+          this._queue = [];
         }
         this._saveFailedRequests();
       }
@@ -316,15 +315,15 @@ export default class StatsigLogger {
       })
       .finally(async () => {
         if (isClosing) {
-          if (this.queue.length > 0) {
+          if (this._queue.length > 0) {
             this._addFailedRequest({
-              events: this.queue,
+              events: this._queue,
               statsigMetadata,
               time: Date.now(),
             });
 
             // on app background/window blur, save unsent events as a request and clean up the queue (in case app foregrounds)
-            this.queue = [];
+            this._queue = [];
           }
           await processor._saveFailedRequests();
         }
@@ -406,7 +405,7 @@ export default class StatsigLogger {
       return;
     }
     const me = this;
-    this.flushInterval = setInterval(() => {
+    this._flushInterval = setInterval(() => {
       me.flush();
     }, this._options.loggingIntervalMillis);
 
@@ -416,22 +415,22 @@ export default class StatsigLogger {
   }
 
   private _shouldLogExposure(key: string): boolean {
-    const lastTime = this.exposureDedupeKeys[key];
+    const lastTime = this._exposureDedupeKeys[key];
     const now = Date.now();
     if (lastTime == null) {
-      this.exposureDedupeKeys[key] = now;
+      this._exposureDedupeKeys[key] = now;
       return true;
     }
     if (lastTime >= now - 600 * 1000) {
       return false;
     }
-    this.exposureDedupeKeys[key] = now;
+    this._exposureDedupeKeys[key] = now;
     return true;
   }
 
   private async _saveFailedRequests(): Promise<void> {
-    if (this.failedLogEvents.length > 0) {
-      const requestsCopy = JSON.stringify(this.failedLogEvents);
+    if (this._failedLogEvents.length > 0) {
+      const requestsCopy = JSON.stringify(this._failedLogEvents);
       if (requestsCopy.length > MAX_LOCAL_STORAGE_SIZE) {
         this._clearLocalStorageRequests();
         return;
@@ -447,15 +446,15 @@ export default class StatsigLogger {
     if (requestBody.time < Date.now() - MS_RETRY_LOGS_CUTOFF) {
       return;
     }
-    if (this.failedLogEvents.length > MAX_BATCHES_TO_RETRY) {
+    if (this._failedLogEvents.length > MAX_BATCHES_TO_RETRY) {
       return;
     }
     const additionalEvents = requestBody.events.length;
-    if (this.failedLogEventCount + additionalEvents > MAX_FAILED_EVENTS) {
+    if (this._failedLogEventCount + additionalEvents > MAX_FAILED_EVENTS) {
       return;
     }
-    this.failedLogEvents.push(requestBody);
-    this.failedLogEventCount += additionalEvents;
+    this._failedLogEvents.push(requestBody);
+    this._failedLogEventCount += additionalEvents;
   }
 
   private _clearLocalStorageRequests(): void {
@@ -463,12 +462,12 @@ export default class StatsigLogger {
   }
 
   private _newFailedRequest(name: string, queue: object[]): void {
-    if (this.loggedErrors.has(name)) {
+    if (this._loggedErrors.has(name)) {
       return;
     }
-    this.loggedErrors.add(name);
+    this._loggedErrors.add(name);
 
-    this.failedLogEvents.push({
+    this._failedLogEvents.push({
       events: queue,
       statsigMetadata: this._identity._statsigMetadata,
       time: Date.now(),

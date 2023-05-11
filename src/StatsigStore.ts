@@ -12,7 +12,6 @@ export enum EvaluationReason {
   Bootstrap = 'Bootstrap',
   InvalidBootstrap = 'InvalidBootstrap',
   Cache = 'Cache',
-  Prefetch = 'Prefetch',
   Unrecognized = 'Unrecognized',
   Uninitialized = 'Uninitialized',
   Error = 'Error',
@@ -58,11 +57,7 @@ type APIInitializeData = {
   user_hash?: string;
 };
 
-type APIInitializeDataWithPrefetchedUsers = APIInitializeData & {
-  prefetched_user_values?: Record<string, APIInitializeData>;
-};
-
-type UserCacheValues = APIInitializeDataWithPrefetchedUsers & {
+type UserCacheValues = APIInitializeData & {
   evaluation_time?: number;
 };
 
@@ -283,23 +278,12 @@ export default class StatsigStore {
    * Merges the provided init configs into the provided config map, according to the provided merge function
    */
   private _mergeInitializeResponseIntoUserMap(
-    data: APIInitializeDataWithPrefetchedUsers,
+    data: APIInitializeData,
     configMap: Record<string, UserCacheValues | undefined>,
     requestedUserCacheKey: string,
     user: StatsigUser | null,
     mergeFn: (user: UserCacheValues, key: string) => UserCacheValues,
   ) {
-    if (data.prefetched_user_values) {
-      const cacheKeys = Object.keys(data.prefetched_user_values);
-      for (const key of cacheKeys) {
-        const prefetched = data.prefetched_user_values[key];
-        configMap[key] = mergeFn(
-          this._convertAPIDataToCacheValues(prefetched, key),
-          key,
-        );
-      }
-    }
-
     if (requestedUserCacheKey) {
       const requestedUserValues = this._convertAPIDataToCacheValues(
         data,

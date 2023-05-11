@@ -14,7 +14,7 @@ describe('Verify behavior of StatsigClient with sinceTime', () => {
   var parsedRequestBody;
 
   const gate = {
-    'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+    '3114454104': {
       value: true,
       rule_id: 'ruleID12',
       secondary_exposures: [
@@ -56,7 +56,6 @@ describe('Verify behavior of StatsigClient with sinceTime', () => {
     jest.restoreAllMocks();
     parsedRequestBody = null;
 
-    Statsig.encodeIntializeCall = false;
     localStorage.clear();
     localStorage.setItem(
       INTERNAL_STORE_KEY,
@@ -78,16 +77,10 @@ describe('Verify behavior of StatsigClient with sinceTime', () => {
     const statsig = new StatsigClient(sdkKey, user, {
       overrideStableID: stableID,
     });
-    // @ts-ignore
-    const spy = jest.spyOn(statsig.getNetwork(), 'fetchValues');
+
+    const spy = jest.spyOn(statsig._network, 'fetchValues');
     await statsig.initializeAsync();
-    expect(spy).toHaveBeenCalledWith(
-      user,
-      null,
-      expect.anything(),
-      expect.anything(),
-      undefined,
-    );
+    expect(spy).toHaveBeenCalledWith(user, null, expect.anything());
 
     const key = getUserCacheKey(user);
     const userHash = getHashValue(JSON.stringify(user));
@@ -99,12 +92,6 @@ describe('Verify behavior of StatsigClient with sinceTime', () => {
     expect(storeObject[key].time).toEqual(1646026677490);
 
     await statsig.updateUser(user);
-    expect(spy).toHaveBeenCalledWith(
-      user,
-      1646026677490,
-      expect.anything(),
-      undefined,
-      undefined,
-    );
+    expect(spy).toHaveBeenCalledWith(user, 1646026677490, expect.anything());
   });
 });

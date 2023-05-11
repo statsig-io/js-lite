@@ -19,21 +19,7 @@ import StatsigLocalStorage from './utils/StatsigLocalStorage';
 import { now } from './utils/Timing';
 import makeLogEvent from './LogEvent';
 
-export interface IStatsig {
-  initializeAsync(): Promise<void>;
-  checkGate(gateName: string): boolean;
-  getConfig(configName: string): DynamicConfig;
-  logEvent(
-    eventName: string,
-    value?: string | number | null,
-    metadata?: Record<string, string> | null,
-  ): void;
-  updateUser(user: StatsigUser | null): Promise<boolean>;
-  shutdown(): void;
-  getStableID(): string;
-}
-
-export default class StatsigClient implements IStatsig {
+export default class StatsigClient {
   private _ready: boolean;
   private _initCalled: boolean = false;
   private _pendingInitPromise: Promise<void> | null = null;
@@ -69,7 +55,6 @@ export default class StatsigClient implements IStatsig {
       this._normalizeUser(user ?? null),
       this._options.overrideStableID,
     );
-
     this._network = new StatsigNetwork(
       this._options,
       this._identity,
@@ -221,6 +206,10 @@ export default class StatsigClient implements IStatsig {
     );
   }
 
+  public getExperiment(configName: string): DynamicConfig {
+    return this.getConfig(configName);
+  }
+
   public getLayer(layerName: string): Layer {
     return this._errorBoundary._capture(
       'getLayer',
@@ -241,7 +230,7 @@ export default class StatsigClient implements IStatsig {
     metadata: Record<string, string> | null = null,
   ): void {
     this._errorBoundary._swallow('logEvent', () => {
-      if (!this._logger || !this._ready) {
+      if (!this._logger || !this._identity._sdkKey) {
         throw new StatsigUninitializedError(
           'Must initialize() before logging events.',
         );
@@ -338,7 +327,7 @@ export default class StatsigClient implements IStatsig {
   }
 
   private _normalizeUser(user: StatsigUser | null): StatsigUser {
-    let userCopy: StatsigUser = {};
+    let userCopy: Record<string, unknown> = {};
     try {
       userCopy = JSON.parse(JSON.stringify(user));
     } catch (error) {
@@ -348,10 +337,9 @@ export default class StatsigClient implements IStatsig {
     }
 
     if (this._options.environment != null) {
-      // @ts-ignore
-      userCopy.statsigEnvironment = this._options.getEnvironment();
+      userCopy = { ...userCopy, statsigEnvironment: this._options.environment };
     }
-    return userCopy;
+    return userCopy as StatsigUser;
   }
 
   private _ensureStoreLoaded(): void {

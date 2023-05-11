@@ -28,18 +28,18 @@ expect.extend({
     received: DynamicConfig,
     expected: DynamicConfig,
   ) {
-    if (received.getName() !== expected.getName()) {
+    if (received._name !== expected._name) {
       return {
         pass: false,
         message: () =>
-          `Expected name of DynamicConfig: ${received.getName()} to match: ${expected.getName()}`,
+          `Expected name of DynamicConfig: ${received._name} to match: ${expected._name}`,
       };
     }
-    if (received.getRuleID() !== expected.getRuleID()) {
+    if (received._ruleID !== expected._ruleID) {
       return {
         pass: false,
         message: () =>
-          `Expected ruleID of DynamicConfig: ${received.getRuleID()} to match: ${expected.getRuleID()}`,
+          `Expected ruleID of DynamicConfig: ${received._ruleID} to match: ${expected._ruleID}`,
       };
     }
     if (Object.is(received.getValue(), expected.getValue())) {

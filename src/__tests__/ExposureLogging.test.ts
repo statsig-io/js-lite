@@ -59,11 +59,11 @@ describe('ExposureLogging', () => {
     await Statsig.initialize(
       'client-key',
       { userID: 'dloomb' },
-      { initTimeoutMs: 1, disableDiagnosticsLogging: true },
+      { initTimeoutMs: 1 },
     );
 
     // @ts-ignore
-    Statsig.instance.options.loggingBufferMaxSize = 1;
+    Statsig.instance._options.loggingBufferMaxSize = 1;
   });
 
   afterEach(() => {
@@ -101,63 +101,6 @@ describe('ExposureLogging', () => {
       expect(events.length).toBe(1);
       expect(events[0].metadata.config).toEqual('a_layer');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
-      expect(events[0].eventName).toEqual('statsig::layer_exposure');
-    });
-  });
-
-  describe('exposure logging disabled', () => {
-    it('does not log gate exposures', async () => {
-      Statsig.checkGateWithExposureLoggingDisabled('a_gate');
-      expect(events.length).toBe(0);
-    });
-
-    it('does not log config exposures', async () => {
-      Statsig.getConfigWithExposureLoggingDisabled('a_config');
-      expect(events.length).toBe(0);
-    });
-
-    it('does not log experiment exposures', async () => {
-      Statsig.getExperimentWithExposureLoggingDisabled('an_experiment');
-      expect(events.length).toBe(0);
-    });
-
-    it('does not log layer exposures', async () => {
-      const layer = Statsig.getLayerWithExposureLoggingDisabled('a_layer');
-      layer.get('a_bool', false);
-      expect(events.length).toBe(0);
-    });
-  });
-
-  describe('manual exposure logging', () => {
-    it('logs a manual gate exposure', async () => {
-      Statsig.manuallyLogGateExposure('a_gate');
-      expect(events.length).toBe(1);
-      expect(events[0].metadata.gate).toEqual('a_gate');
-      expect(events[0].metadata.isManualExposure).toEqual('true');
-      expect(events[0].eventName).toEqual('statsig::gate_exposure');
-    });
-
-    it('logs a manual config exposure', async () => {
-      Statsig.manuallyLogConfigExposure('a_config');
-      expect(events.length).toBe(1);
-      expect(events[0].metadata.config).toEqual('a_config');
-      expect(events[0].metadata.isManualExposure).toEqual('true');
-      expect(events[0].eventName).toEqual('statsig::config_exposure');
-    });
-
-    it('logs a manual experiment exposure', async () => {
-      Statsig.manuallyLogExperimentExposure('an_experiment');
-      expect(events.length).toBe(1);
-      expect(events[0].metadata.config).toEqual('an_experiment');
-      expect(events[0].metadata.isManualExposure).toEqual('true');
-      expect(events[0].eventName).toEqual('statsig::config_exposure');
-    });
-
-    it('logs a manual layer exposure', async () => {
-      Statsig.manuallyLogLayerParameterExposure('a_layer', 'a_bool');
-      expect(events.length).toBe(1);
-      expect(events[0].metadata.config).toEqual('a_layer');
-      expect(events[0].metadata.isManualExposure).toEqual('true');
       expect(events[0].eventName).toEqual('statsig::layer_exposure');
     });
   });
