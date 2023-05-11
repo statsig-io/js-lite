@@ -10,13 +10,13 @@ describe('Verify behavior of StatsigClient', () => {
 
   const values = {
     feature_gates: {
-      'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+      '3114454104': {
         value: true,
         rule_id: 'cache',
       },
     },
     dynamic_configs: {
-      'RMv0YJlLOBe7cY7HgZ3Jox34R0Wrk7jLv3DZyBETA7I=': {
+      '3591394191': {
         value: {
           param: 'cache',
         },
@@ -38,13 +38,13 @@ describe('Verify behavior of StatsigClient', () => {
             Promise.resolve(
               JSON.stringify({
                 feature_gates: {
-                  'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+                  '3114454104': {
                     value: false,
                     rule_id: 'network',
                   },
                 },
                 dynamic_configs: {
-                  'RMv0YJlLOBe7cY7HgZ3Jox34R0Wrk7jLv3DZyBETA7I=': {
+                  '3591394191': {
                     value: {
                       param: 'network',
                     },
@@ -60,14 +60,14 @@ describe('Verify behavior of StatsigClient', () => {
   });
 
   beforeEach(() => {
-    requestTimeoutTime = 1000
+    requestTimeoutTime = 1000;
   });
 
   test('cache used before initialize resolves, then network result used', async () => {
     expect.assertions(7);
     const statsig = new StatsigClient(sdkKey, { userID: '123' });
-    await statsig.getStore().save({ userID: '123' }, values);
-    expect(statsig.initializeCalled()).toBe(false)
+    await statsig._store.save({ userID: '123' }, values);
+    expect(statsig.initializeCalled()).toBe(false);
     const init = statsig.initializeAsync();
 
     expect(statsig.initializeCalled()).toBe(true);
@@ -79,7 +79,7 @@ describe('Verify behavior of StatsigClient', () => {
     ).toEqual('cache');
     jest.advanceTimersByTime(2000);
     await init;
-    expect(statsig.initializeCalled()).toBe(true)
+    expect(statsig.initializeCalled()).toBe(true);
     jest.advanceTimersByTime(2000);
     expect(statsig.checkGate('test_gate')).toBe(false);
     expect(
@@ -90,7 +90,7 @@ describe('Verify behavior of StatsigClient', () => {
   test('storage is updated but cache is not when the request time exceeds the timeout', async () => {
     requestTimeoutTime = 10000;
     const statsig = new StatsigClient(sdkKey, { userID: '123' });
-    await statsig.getStore().save({ userID: '123' }, values);
+    await statsig._store.save({ userID: '123' }, values);
     const init = statsig.initializeAsync();
 
     expect(statsig.initializeCalled()).toBe(true);
@@ -102,7 +102,6 @@ describe('Verify behavior of StatsigClient', () => {
     ).toEqual('cache');
     jest.advanceTimersByTime(10000);
     await init;
-
 
     // Test gate should still return the same value, because the request timed out
     expect(statsig.checkGate('test_gate')).toBe(true);

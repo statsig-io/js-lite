@@ -7,6 +7,7 @@ import 'core-js';
 import LogEvent from '../LogEvent';
 import StatsigClient from '../StatsigClient';
 import StatsigLogger from '../StatsigLogger';
+import makeLogEvent from '../LogEvent';
 
 describe('Verify behavior of StatsigLogger', () => {
   const sdkKey = 'client-loggertestkey';
@@ -52,36 +53,36 @@ describe('Verify behavior of StatsigLogger', () => {
 
   test('Test constructor', () => {
     expect.assertions(11);
-    const client = new StatsigClient(
-      sdkKey,
-      { userID: 'user_key' },
-      { disableDiagnosticsLogging: true },
-    );
-    const logger = client.getLogger();
+    const client = new StatsigClient(sdkKey, { userID: 'user_key' });
+    const logger = client._logger;
     const spyOnFlush = jest.spyOn(logger, 'flush');
     const spyOnLog = jest.spyOn(logger, 'log');
 
-    // @ts-ignore access private attribute
-    expect(client.getLogger().flushInterval).not.toBeNull();
+    // @ts-ignore
+    expect(client._logger._flushInterval).not.toBeNull();
 
     // @ts-ignore trust me, the method exists
-    const spyOnFailureLog = jest.spyOn(logger, 'newFailedRequest');
-    const spyOnErrorBoundary = jest.spyOn(client.getErrorBoundary(), '_logError');
+    const spyOnFailureLog = jest.spyOn(logger, '_newFailedRequest');
+    const spyOnErrorBoundary = jest.spyOn(client._errorBoundary, '_logError');
+
+    const makeSimpleLogEvent = (name: string) =>
+      makeLogEvent(name, null, client._identity._statsigMetadata, null, null);
+
     return client.initializeAsync().then(async () => {
-      logger.log(new LogEvent('event'));
-      logger.log(new LogEvent('event'));
-      logger.log(new LogEvent('event'));
+      logger.log(makeSimpleLogEvent('event'));
+      logger.log(makeSimpleLogEvent('event'));
+      logger.log(makeSimpleLogEvent('event'));
       client.checkGate('test_gate');
       client.checkGate('test_gate');
       client.checkGate('test_gate');
-      logger.log(new LogEvent('event'));
+      logger.log(makeSimpleLogEvent('event'));
       client.getExperiment('test_config');
       client.getExperiment('test_config');
       client.getExperiment('test_config');
       expect(spyOnLog).toHaveBeenCalledTimes(6);
       client.getExperiment('test_config');
       for (var i = 0; i < 95; i++) {
-        logger.log(new LogEvent('event'));
+        logger.log(makeSimpleLogEvent('event'));
       }
       expect(spyOnFlush).toHaveBeenCalledTimes(1);
       expect(spyOnLog).toHaveBeenCalledTimes(101);
@@ -123,8 +124,8 @@ describe('Verify behavior of StatsigLogger', () => {
       { localMode: true },
     );
 
-    // @ts-ignore access private attribute
-    expect(client.getLogger().flushInterval).toBeNull();
+    // @ts-ignore
+    expect(client._logger._flushInterval).toBeNull();
   });
 
   describe('window/document event handling', () => {
@@ -134,7 +135,7 @@ describe('Verify behavior of StatsigLogger', () => {
     beforeEach(() => {
       jest.useFakeTimers();
       const client = new StatsigClient(sdkKey, { userID: 'user_key' });
-      logger = client.getLogger();
+      logger = client._logger;
       spy = jest.spyOn(logger, 'flush');
     });
 
@@ -208,72 +209,5 @@ describe('Verify behavior of StatsigLogger', () => {
       document.dispatchEvent(new Event('visibilitychange'));
       expect(spy).toHaveBeenCalledWith(false);
     });
-  });
-
-  test('Test diagnostics', async () => {
-    expect.assertions(2);
-    const client = new StatsigClient(
-      sdkKey,
-      { userID: 'user_key' },
-      { disableCurrentPageLogging: true },
-    );
-    const logger = client.getLogger();
-    const spyOnLog = jest.spyOn(logger, 'log');
-    await client.initializeAsync();
-
-    expect(spyOnLog).toHaveBeenCalledTimes(1);
-    const event = new LogEvent('statsig::diagnostics');
-    event._setMetadata({
-      context: 'initialize',
-      markers: [
-        {
-          action: 'start',
-          key: 'overall',
-          step: null,
-          timestamp: expect.any(Number),
-          value: null,
-        },
-        {
-          action: 'start',
-          key: 'initialize',
-          step: 'network_request',
-          timestamp: expect.any(Number),
-          value: null,
-        },
-        {
-          action: 'end',
-          key: 'initialize',
-          step: 'network_request',
-          timestamp: expect.any(Number),
-          value: 200,
-        },
-        {
-          action: 'start',
-          key: 'initialize',
-          step: 'process',
-          timestamp: expect.any(Number),
-          value: null,
-        },
-        {
-          action: 'end',
-          key: 'initialize',
-          step: 'process',
-          timestamp: expect.any(Number),
-          value: null,
-        },
-        {
-          action: 'end',
-          key: 'overall',
-          step: null,
-          timestamp: expect.any(Number),
-          value: null,
-        },
-      ],
-      metadata: {
-        is_delta: false,
-      },
-    });
-    event._setUser({ userID: 'user_key' });
-    expect(spyOnLog).toHaveBeenCalledWith(event);
   });
 });

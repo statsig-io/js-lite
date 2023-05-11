@@ -56,7 +56,6 @@ describe('Verify behavior of StatsigClient with sinceTime', () => {
     jest.restoreAllMocks();
     parsedRequestBody = null;
 
-    Statsig.encodeIntializeCall = false;
     localStorage.clear();
     localStorage.setItem(
       INTERNAL_STORE_KEY,

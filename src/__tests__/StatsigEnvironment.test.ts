@@ -19,7 +19,6 @@ describe('StatsigEnvironment', () => {
 
   beforeEach(() => {
     requests = [];
-    Statsig.encodeIntializeCall = false;
     (Statsig as any).instance = null;
   });
 
@@ -63,56 +62,12 @@ describe('StatsigEnvironment', () => {
     expect(body.user.userID).toBeUndefined();
   });
 
-  it('leaves environment blank for prefetched user initialize calls', async () => {
-    await Statsig.initialize('client-key', null, {
-      prefetchUsers: [{ userID: 'prefetched_user' }],
-    });
-    const { url, body } = requests[0];
-
-    expect(requests.length).toBe(1);
-    expect(url).toContain('/v1/initialize');
-
-    const prefetchedUser: any = Object.values(body.prefetchUsers)[0];
-    expect(prefetchedUser.statsigEnvironment).toBeUndefined;
-  });
-
-  it('applies environment to prefetched user initialize calls', async () => {
-    await Statsig.initialize('client-key', null, {
-      environment: { tier: 'development' },
-      prefetchUsers: [{ userID: 'prefetched_user' }],
-    });
-    const { url, body } = requests[0];
-
-    expect(requests.length).toBe(1);
-    expect(url).toContain('/v1/initialize');
-
-    const prefetchedUser: any = Object.values(body.prefetchUsers)[0];
-    expect(prefetchedUser.userID).toEqual('prefetched_user');
-    expect(prefetchedUser.statsigEnvironment).toEqual({
-      tier: 'development',
-    });
-  });
-
   describe('After Initialized [With Environment]', () => {
     beforeEach(async () => {
       await Statsig.initialize('client-key', null, {
         environment: { tier: 'development' },
       });
       requests = [];
-    });
-
-    it('applies environment to explicit prefetched user calls', async () => {
-      await Statsig.prefetchUsers([{ userID: 'explicit_prefetch_user' }]);
-      const { url, body } = requests[0];
-
-      expect(requests.length).toBe(1);
-      expect(url).toContain('/v1/initialize');
-
-      const prefetchedUser: any = Object.values(body.prefetchUsers)[0];
-      expect(prefetchedUser.userID).toEqual('explicit_prefetch_user');
-      expect(prefetchedUser.statsigEnvironment).toEqual({
-        tier: 'development',
-      });
     });
 
     it('applies environment to updateUser calls', async () => {
@@ -132,17 +87,6 @@ describe('StatsigEnvironment', () => {
     beforeEach(async () => {
       await Statsig.initialize('client-key', null);
       requests = [];
-    });
-
-    it('leaves environment blank for explicit prefetched user calls', async () => {
-      await Statsig.prefetchUsers([{ userID: 'explicit_prefetch_user' }]);
-      const { url, body } = requests[0];
-
-      expect(requests.length).toBe(1);
-      expect(url).toContain('/v1/initialize');
-
-      const prefetchedUser: any = Object.values(body.prefetchUsers)[0];
-      expect(prefetchedUser.statsigEnvironment).toBeUndefined();
     });
 
     it('leaves environment blank for updateUser calls', async () => {

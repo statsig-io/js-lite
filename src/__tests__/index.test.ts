@@ -3,9 +3,10 @@
  */
 
 import Statsig from '..';
-import LogEvent from '../LogEvent';
+import makeLogEvent from '../LogEvent';
 import StatsigClient from '../StatsigClient';
 import { EvaluationReason } from '../StatsigStore';
+import { INTERNAL_STORE_KEY } from '../utils/Constants';
 import * as TestData from './basic_initialize_response.json';
 let statsig: typeof Statsig;
 
@@ -34,7 +35,7 @@ describe('Verify behavior of top level index functions', () => {
     }
     if (url.toString().includes('initialize')) {
       let body = JSON.parse(params?.body as string);
-      hasCustomID = body.user.customIDs?.['customID'] != null;
+      hasCustomID = body.user?.customIDs?.['customID'] != null;
       return Promise.resolve({
         ok: true,
         text: () => Promise.resolve(JSON.stringify(TestData)),
@@ -47,12 +48,10 @@ describe('Verify behavior of top level index functions', () => {
   beforeEach(() => {
     jest.resetModules();
     statsig = require('../index').default;
-    statsig.encodeIntializeCall = false;
-    Statsig.encodeIntializeCall = false;
     expect.hasAssertions();
     requestCount = 0;
     hasCustomID = false;
-    window.localStorage.removeItem('STATSIG_LOCAL_STORAGE_INTERNAL_STORE_V4');
+    window.localStorage.removeItem(INTERNAL_STORE_KEY);
 
     // ensure Date.now() returns the same value in each test
     let now = Date.now();
@@ -95,7 +94,7 @@ describe('Verify behavior of top level index functions', () => {
       expect(() => {
         // @ts-ignore
         statsig.getExperiment();
-      }).toThrowError('Must pass a valid string as the experimentName.');
+      }).toThrowError('Must pass a valid string as the configName.');
     });
   });
 
@@ -109,7 +108,7 @@ describe('Verify behavior of top level index functions', () => {
       expect(() => {
         // @ts-ignore
         statsig.getExperiment(12);
-      }).toThrowError('Must pass a valid string as the experimentName.');
+      }).toThrowError('Must pass a valid string as the configName.');
     });
   });
 
@@ -139,32 +138,37 @@ describe('Verify behavior of top level index functions', () => {
       .initialize('client-key', null, { disableCurrentPageLogging: true })
       .then(() => {
         // @ts-ignore
-        const ready = statsig.instance.ready;
+        const ready = statsig.instance._ready;
         expect(ready).toBe(true);
 
         //@ts-ignore
-        const spy = jest.spyOn(statsig.instance.logger, 'log');
-        let gateExposure = new LogEvent('statsig::gate_exposure');
-        gateExposure._setUser({});
-        gateExposure._setMetadata({
-          gate: 'test_gate',
-          gateValue: String(true),
-          ruleID: 'ruleID123',
-          reason: EvaluationReason.Network,
-          time: Date.now(),
-        });
-        gateExposure._setSecondaryExposures([
+        const spy = jest.spyOn(statsig.instance._logger, 'log');
+        let gateExposure = makeLogEvent(
+          'statsig::gate_exposure',
+          null,
+          (statsig as any).instance._identity._statsigMetadata,
+          null,
           {
-            gate: 'dependent_gate_1',
-            gateValue: 'true',
-            ruleID: 'rule_1',
+            gate: 'test_gate',
+            gateValue: String(true),
+            ruleID: 'ruleID123',
+            reason: EvaluationReason.Network,
+            time: Date.now(),
           },
-          {
-            gate: 'dependent_gate_2',
-            gateValue: 'false',
-            ruleID: 'default',
-          },
-        ]);
+          [
+            {
+              gate: 'dependent_gate_1',
+              gateValue: 'true',
+              ruleID: 'rule_1',
+            },
+            {
+              gate: 'dependent_gate_2',
+              gateValue: 'false',
+              ruleID: 'default',
+            },
+          ],
+        );
+
         const gateValue = statsig.checkGate('test_gate');
         expect(gateValue).toBe(true);
         expect(spy).toHaveBeenCalledTimes(1);
@@ -183,7 +187,7 @@ describe('Verify behavior of top level index functions', () => {
     return statsig.initialize('client-key', null).then(() => {
       return statsig.updateUser({ userID: 123 }).then(() => {
         // @ts-ignore
-        const ready = statsig.instance.ready;
+        const ready = statsig.instance._ready;
         expect(ready).toBe(true);
       });
     });
@@ -213,20 +217,26 @@ describe('Verify behavior of top level index functions', () => {
       .initialize('client-key', null, { disableCurrentPageLogging: true })
       .then(() => {
         // @ts-ignore
-        const ready = statsig.instance.ready;
+        const ready = statsig.instance._ready;
         expect(ready).toBe(true);
 
         //@ts-ignore
-        const spy = jest.spyOn(statsig.instance.logger, 'log');
-        let configExposure = new LogEvent('statsig::config_exposure');
-        configExposure._setUser({});
-        configExposure._setMetadata({
-          config: 'test_config',
-          ruleID: 'ruleID',
-          reason: EvaluationReason.Network,
-          time: Date.now(),
-        });
-        configExposure._setSecondaryExposures([]);
+        const spy = jest.spyOn(statsig.instance._logger, 'log');
+
+        const configExposure = makeLogEvent(
+          'statsig::config_exposure',
+          null,
+          (statsig as any).instance._identity._statsigMetadata,
+          null,
+          {
+            config: 'test_config',
+            ruleID: 'ruleID',
+            reason: EvaluationReason.Network,
+            time: Date.now(),
+          },
+          [],
+        );
+
         const config = statsig.getConfig('test_config');
         expect(config?.value).toStrictEqual({
           bool: true,
@@ -308,20 +318,25 @@ describe('Verify behavior of top level index functions', () => {
       .initialize('client-key', null, { disableCurrentPageLogging: true })
       .then(() => {
         // @ts-ignore
-        const ready = statsig.instance.ready;
+        const ready = statsig.instance._ready;
         expect(ready).toBe(true);
 
         //@ts-ignore
-        const spy = jest.spyOn(statsig.instance.logger, 'log');
-        let configExposure = new LogEvent('statsig::config_exposure');
-        configExposure._setUser({});
-        configExposure._setMetadata({
-          config: 'test_config',
-          ruleID: 'ruleID',
-          reason: EvaluationReason.Network,
-          time: Date.now(),
-        });
-        configExposure._setSecondaryExposures([]);
+        const spy = jest.spyOn(statsig.instance._logger, 'log');
+        const configExposure = makeLogEvent(
+          'statsig::config_exposure',
+          null,
+          (statsig as any).instance._identity._statsigMetadata,
+          null,
+          {
+            config: 'test_config',
+            ruleID: 'ruleID',
+            reason: EvaluationReason.Network,
+            time: Date.now(),
+          },
+          [],
+        );
+
         const exp = statsig.getExperiment('test_config');
         expect(exp?.value).toStrictEqual({
           bool: true,
@@ -342,49 +357,6 @@ describe('Verify behavior of top level index functions', () => {
       });
   });
 
-  test('Verify big user object and log event are getting trimmed', () => {
-    expect.assertions(8);
-    let str_2k = str_64;
-    // create a 32k long string
-    for (let i = 0; i < 5; i++) {
-      str_2k += str_2k;
-    }
-    expect(str_2k.length).toBe(2048);
-    return statsig
-      .initialize(
-        'client-key',
-        {
-          userID: str_64 + 'more',
-          email: 'jest@statsig.com',
-          custom: { extradata: str_2k },
-        },
-        {
-          environment: { tier: 'production' },
-        },
-      )
-      .then(() => {
-        // @ts-ignore
-        let user: StatsigUser = statsig.instance.identity.getUser();
-        expect(user).not.toBeNull();
-        expect(user.userID.length).toBe(64);
-        expect(user.userID).toEqual(str_64);
-        expect(user.email).toEqual('jest@statsig.com');
-        expect(user.custom).toEqual({});
-        expect(user.statsigEnvironment).toEqual({ tier: 'production' });
-        // @ts-ignore
-        const spy = jest.spyOn(statsig.instance.logger, 'log');
-        statsig.logEvent(str_64 + 'extra', str_64 + 'extra', {
-          extradata: str_2k,
-        });
-        const trimmedEvent = new LogEvent(str_64.substring(0, 64));
-        trimmedEvent._setValue(str_64.substring(0, 64));
-        trimmedEvent._setMetadata({ error: 'not logged due to size too large' });
-        trimmedEvent._addStatsigMetadata('currentPage', 'http://localhost/');
-        trimmedEvent._setUser(user);
-        expect(spy).toHaveBeenCalledWith(trimmedEvent);
-      });
-  });
-
   test('calling initialize() multiple times work as expected', async () => {
     expect.assertions(5);
 
@@ -402,18 +374,12 @@ describe('Verify behavior of top level index functions', () => {
 
   test('shutdown does flush logs and they are correct', async () => {
     expect.assertions(8);
-    await statsig.initialize(
-      'client-key',
-      {
-        userID: '12345',
-        country: 'US',
-        custom: { key: 'value' },
-        privateAttributes: { private: 'value' },
-      },
-      {
-        disableDiagnosticsLogging: true,
-      },
-    );
+    await statsig.initialize('client-key', {
+      userID: '12345',
+      country: 'US',
+      custom: { key: 'value' },
+      privateAttributes: { private: 'value' },
+    });
     expect(statsig.checkGate('test_gate')).toEqual(true);
     const config = statsig.getConfig('test_config');
     expect(config?.value).toStrictEqual({
@@ -499,7 +465,7 @@ describe('Verify behavior of top level index functions', () => {
 
     expect(postedLogs['statsigMetadata']).toEqual(
       expect.objectContaining({
-        sdkType: 'js-client',
+        sdkType: 'js-lite',
         sdkVersion: expect.any(String),
         stableID: expect.any(String),
       }),
@@ -525,26 +491,9 @@ describe('Verify behavior of top level index functions', () => {
     );
 
     // @ts-ignore
-    const spy = jest.spyOn(statsig.instance.network, 'fetchValues');
+    const spy = jest.spyOn(statsig.instance._network, 'fetchValues');
     await expect(statsig.updateUser({ userID: '456' })).resolves.not.toThrow();
     expect(spy).toHaveBeenCalledTimes(0);
-  });
-
-  // React Native specific tests
-  test('set react native uuid', async () => {
-    const RNUUID = {
-      v4(): string | number[] {
-        return 'uuid_666';
-      },
-    };
-    StatsigClient.setReactNativeUUID(RNUUID);
-    const client = new StatsigClient(
-      'client-key',
-      { userID: '123' },
-      { overrideStableID: '666' },
-    );
-    await client.initializeAsync();
-    expect(client.getStableID()).toEqual('666');
   });
 
   test('customIDs is sent with user', async () => {

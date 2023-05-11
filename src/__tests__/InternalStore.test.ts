@@ -137,10 +137,10 @@ describe('Verify behavior of InternalStore', () => {
   test('Verify top level function initializes instance variables.', () => {
     expect.assertions(2);
     const client = new StatsigClient(sdkKey, null);
-    expect(client.getStore()).not.toBeNull();
+    expect(client._store).not.toBeNull();
     return client.initializeAsync().then(() => {
       // @ts-ignore
-      const store = client.getStore();
+      const store = client._store;
       expect(store).not.toBeNull();
     });
   });
@@ -150,7 +150,7 @@ describe('Verify behavior of InternalStore', () => {
     const spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
     const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
     const client = new StatsigClient(sdkKey);
-    const store = client.getStore();
+    const store = client._store;
 
     expect(store.getGlobalEvaluationDetails()).toEqual({
       reason: EvaluationReason.Uninitialized,
@@ -166,13 +166,13 @@ describe('Verify behavior of InternalStore', () => {
     });
     expect(spyOnSet).toHaveBeenCalledTimes(1); // stableid not saved by default
     expect(spyOnGet).toHaveBeenCalledTimes(4); // load 2 cache values, 1 overrides and 1 stableid
-    const config = store.getConfig('test_config', false);
+    const config = store.getConfig('test_config');
     expect(config).toMatchConfig(config_obj);
-    expect(config.getEvaluationDetails()).toEqual({
+    expect(config._evaluationDetails).toEqual({
       reason: EvaluationReason.Network,
       time: now,
     });
-    expect(store.checkGate('test_gate', false).gate.value).toEqual(true);
+    expect(store.checkGate('test_gate').gate.value).toEqual(true);
   });
 
   test('Verify cache before init and save correctly saves into cache.', () => {
@@ -181,10 +181,10 @@ describe('Verify behavior of InternalStore', () => {
     const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
     const client = new StatsigClient(sdkKey);
     expect(spyOnSet).toHaveBeenCalledTimes(0);
-    const store = client.getStore();
-    expect(
-      store.getConfig('test_config', false).getEvaluationDetails().reason,
-    ).toEqual(EvaluationReason.Uninitialized);
+    const store = client._store;
+    expect(store.getConfig('test_config')._evaluationDetails.reason).toEqual(
+      EvaluationReason.Uninitialized,
+    );
 
     store.save(null, {
       feature_gates: feature_gates,
@@ -192,25 +192,25 @@ describe('Verify behavior of InternalStore', () => {
     });
     expect(spyOnSet).toHaveBeenCalledTimes(1);
     expect(spyOnGet).toHaveBeenCalledTimes(4); // load 2 cache values and 1 overrides and 1 stableid
-    const config = store.getConfig('test_config', false);
+    const config = store.getConfig('test_config');
     expect(config).toMatchConfig(config_obj);
-    expect(config.getEvaluationDetails()).toEqual({
+    expect(config._evaluationDetails).toEqual({
       reason: EvaluationReason.Network,
       time: now,
     });
-    expect(store.checkGate('test_gate', false).gate.value).toEqual(true);
+    expect(store.checkGate('test_gate').gate.value).toEqual(true);
   });
 
   test('Verify local storage usage with override id', () => {
     expect.assertions(8);
     const spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
     const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
-    const client = new StatsigClient(sdkKey, {}, {overrideStableID: "999"});
+    const client = new StatsigClient(sdkKey, {}, { overrideStableID: '999' });
     expect(spyOnSet).toHaveBeenCalledTimes(0);
-    const store = client.getStore();
-    expect(
-      store.getConfig('test_config', false).getEvaluationDetails().reason,
-    ).toEqual(EvaluationReason.Uninitialized);
+    const store = client._store;
+    expect(store.getConfig('test_config')._evaluationDetails.reason).toEqual(
+      EvaluationReason.Uninitialized,
+    );
 
     store.save(null, {
       feature_gates: feature_gates,
@@ -222,21 +222,21 @@ describe('Verify behavior of InternalStore', () => {
     // @ts-ignore
     client.delayedSetup();
     expect(spyOnSet).toHaveBeenCalledTimes(2); // only now do we save the stableid
-    const config = store.getConfig('test_config', false);
+    const config = store.getConfig('test_config');
     expect(config).toMatchConfig(config_obj);
-    expect(config.getEvaluationDetails()).toEqual({
+    expect(config._evaluationDetails).toEqual({
       reason: EvaluationReason.Network,
       time: now,
     });
-    expect(store.checkGate('test_gate', false).gate.value).toEqual(true);
+    expect(store.checkGate('test_gate').gate.value).toEqual(true);
   });
 
   test('Verify checkGate returns false when gateName does not exist.', () => {
     expect.assertions(1);
     const client = new StatsigClient(sdkKey, { userID: 'user_key' });
     return client.initializeAsync().then(() => {
-      const store = client.getStore();
-      const result = store.checkGate('fake_gate', false).gate.value;
+      const store = client._store;
+      const result = store.checkGate('fake_gate').gate.value;
       expect(result).toBe(false);
     });
   });
@@ -245,14 +245,10 @@ describe('Verify behavior of InternalStore', () => {
     expect.assertions(2);
     const client = new StatsigClient(sdkKey, { userID: 'user_key' });
     return client.initializeAsync().then(() => {
-      expect(client.getStore().checkGate('test_gate', false).gate.value).toBe(
-        true,
-      );
+      expect(client._store.checkGate('test_gate').gate.value).toBe(true);
       expect(
-        client
-          .getStore()
-          .checkGate('AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=', false).gate
-          .value,
+        client._store.checkGate('AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=')
+          .gate.value,
       ).toBe(false);
     });
   });
@@ -261,12 +257,12 @@ describe('Verify behavior of InternalStore', () => {
     expect.assertions(4);
     const client = new StatsigClient(sdkKey, { userID: 'user_key' });
     return client.initializeAsync().then(() => {
-      const store = client.getStore();
-      const config = store.getConfig('fake_config', false);
-      expect(config.getName()).toEqual('fake_config');
+      const store = client._store;
+      const config = store.getConfig('fake_config');
+      expect(config._name).toEqual('fake_config');
       expect(config.getValue()).toEqual({});
-      expect(config.getRuleID()).toEqual('');
-      expect(config.getEvaluationDetails()).toEqual({
+      expect(config._ruleID).toEqual('');
+      expect(config._evaluationDetails).toEqual({
         reason: EvaluationReason.Unrecognized,
         time: now,
       });
@@ -277,318 +273,11 @@ describe('Verify behavior of InternalStore', () => {
     expect.assertions(1);
     const client = new StatsigClient(sdkKey, { userID: 'user_key' });
     return client.initializeAsync().then(() => {
-      const store = client.getStore();
-      expect(store.getConfig('test_config', false).getValue()).toMatchObject({
+      const store = client._store;
+      expect(store.getConfig('test_config').getValue()).toMatchObject({
         bool: true,
       });
     });
-  });
-
-  test('that deprecated override gate APIs work', async () => {
-    expect.assertions(8);
-    const statsig = new StatsigClient(sdkKey, { userID: '123' });
-    await statsig.initializeAsync();
-    // test_gate is true without override
-    expect(statsig.getStore().checkGate('test_gate', false).gate.value).toBe(
-      true,
-    );
-
-    // becomes false with override
-    statsig.getStore().overrideGate('test_gate', false);
-    expect(statsig.getStore().checkGate('test_gate', false).gate.value).toBe(
-      false,
-    );
-    expect(statsig.getOverrides()).toEqual({ test_gate: false });
-
-    // overriding non-existent gate
-    statsig.overrideGate('fake_gate', true);
-    expect(statsig.getOverrides()).toEqual({
-      test_gate: false,
-      fake_gate: true,
-    });
-
-    // remove all overrides
-    statsig.removeOverride();
-    expect(statsig.getOverrides()).toEqual({});
-
-    // remove a named override
-    statsig.getStore().overrideGate('test_gate', false);
-    expect(statsig.getStore().checkGate('test_gate', false).gate.value).toBe(
-      false,
-    );
-    expect(statsig.getOverrides()).toEqual({ test_gate: false });
-    statsig.removeOverride('test_gate');
-    expect(statsig.getOverrides()).toEqual({});
-  });
-
-  test('that override gate/config APIs work', async () => {
-    expect.assertions(15);
-    const statsig = new StatsigClient(sdkKey, { userID: '123' });
-    await statsig.initializeAsync();
-    // test_config matches without override
-    expect(statsig.getStore().getConfig('test_config', false)).toMatchConfig(
-      config_obj,
-    );
-
-    const overrideConfig = {
-      override: true,
-      value: 'Override',
-      count: 1,
-    };
-    statsig.getStore().overrideConfig('test_config', overrideConfig);
-    let config = statsig.getStore().getConfig('test_config', false);
-    expect(config.getValue()).toEqual(overrideConfig);
-    expect(config.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.LocalOverride,
-      time: now,
-    });
-    expect(statsig.getAllOverrides().configs).toEqual({
-      test_config: overrideConfig,
-    });
-    expect(statsig.getAllOverrides().gates).toEqual({});
-
-    // overriding non-existent config does not do anything
-    statsig.overrideConfig('nonexistent_config', { abc: 123 });
-    expect(statsig.getAllOverrides().configs).toEqual({
-      test_config: overrideConfig,
-      nonexistent_config: { abc: 123 },
-    });
-
-    // remove config override, add gate override
-    statsig.removeConfigOverride();
-    expect(statsig.getStore().checkGate('test_gate', false).gate.value).toBe(
-      true,
-    );
-    statsig.getStore().overrideGate('test_gate', false);
-    expect(statsig.getStore().checkGate('test_gate', false).gate.value).toBe(
-      false,
-    );
-    expect(statsig.getAllOverrides()).toEqual({
-      gates: { test_gate: false },
-      configs: {},
-      layers: {},
-    });
-
-    // overriding non-existent gate
-    statsig.overrideGate('nonexistent_gate', true);
-    expect(statsig.getAllOverrides().gates).toEqual({
-      test_gate: false,
-      nonexistent_gate: true,
-    });
-
-    // remove a named override
-    statsig.overrideConfig('test_config', overrideConfig);
-    expect(statsig.getConfig('test_config').getValue()).toEqual(overrideConfig);
-    expect(statsig.getAllOverrides().configs).toEqual({
-      test_config: overrideConfig,
-    });
-    statsig.removeConfigOverride('test_config');
-    expect(statsig.getAllOverrides().gates).toEqual({
-      test_gate: false,
-      nonexistent_gate: true,
-    });
-    expect(statsig.getAllOverrides().configs).toEqual({});
-    statsig.removeGateOverride('test_gate');
-    expect(statsig.getAllOverrides().gates).toEqual({ nonexistent_gate: true });
-  });
-
-  test('test experiment sticky bucketing behavior', async () => {
-    expect.assertions(30);
-    const statsig = new StatsigClient(sdkKey, { userID: '123' });
-    await statsig.initializeAsync();
-    const store = statsig.getStore();
-
-    // getting values with flag set to false, should get latest values
-    store.save({ userID: '123' }, generateTestConfigs('v0', true, true));
-    let exp = store.getExperiment('exp', false);
-    let deviceExp = store.getExperiment('device_exp', false);
-    let expNonSticky = store.getExperiment('exp_non_stick', false);
-    expect(exp.get('key', '')).toEqual('v0');
-    expect(exp.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Network,
-      time: now,
-    });
-    expect(deviceExp.get('key', '')).toEqual('v0');
-    expect(deviceExp.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Network,
-      time: now,
-    });
-    expect(expNonSticky.get('key', '')).toEqual('v0');
-    expect(expNonSticky.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Network,
-      time: now,
-    });
-
-    // update values, and then get with flag set to true. All values should update
-    store.save({ userID: '123' }, generateTestConfigs('v1', true, true));
-    exp = store.getExperiment('exp', true);
-    deviceExp = store.getExperiment('device_exp', true);
-    expNonSticky = store.getExperiment('exp_non_stick', false);
-    expect(exp.get('key', '')).toEqual('v1');
-    expect(exp.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Network,
-      time: now,
-    });
-    expect(deviceExp.get('key', '')).toEqual('v1');
-    expect(deviceExp.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Network,
-      time: now,
-    });
-    expect(expNonSticky.get('key', '')).toEqual('v1');
-    expect(expNonSticky.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Network,
-      time: now,
-    });
-
-    // update values again. Now some values should be sticky except the non-sticky ones
-    store.save({ userID: '123' }, generateTestConfigs('v2', true, true));
-    exp = store.getExperiment('exp', true);
-    deviceExp = store.getExperiment('device_exp', true);
-    expNonSticky = store.getExperiment('exp_non_stick', false);
-    expect(exp.get('key', '')).toEqual('v1');
-    expect(exp.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Sticky,
-      time: now,
-    });
-    expect(deviceExp.get('key', '')).toEqual('v1');
-    expect(deviceExp.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Sticky,
-      time: now,
-    });
-    expect(expNonSticky.get('key', '')).toEqual('v2');
-    expect(expNonSticky.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Network,
-      time: now,
-    });
-
-    // update the experiments so that the user is no longer in experiments, should still be sticky for the right ones
-    store.save({ userID: '123' }, generateTestConfigs('v3', false, true));
-    exp = store.getExperiment('exp', true);
-    deviceExp = store.getExperiment('device_exp', true);
-    expNonSticky = store.getExperiment('exp_non_stick', false);
-    expect(exp.get('key', '')).toEqual('v1');
-    expect(exp.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Sticky,
-      time: now,
-    });
-    expect(deviceExp.get('key', '')).toEqual('v1');
-    expect(deviceExp.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Sticky,
-      time: now,
-    });
-    expect(expNonSticky.get('key', '')).toEqual('v3');
-    expect(expNonSticky.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Network,
-      time: now,
-    });
-
-    // update the experiments to no longer be active, values should update NOW
-    store.save({ userID: '123' }, generateTestConfigs('v4', false, false));
-    exp = store.getExperiment('exp', true);
-    deviceExp = store.getExperiment('device_exp', true);
-    expNonSticky = store.getExperiment('exp_non_stick', false);
-    expect(exp.get('key', '')).toEqual('v4');
-    expect(exp.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Network,
-      time: now,
-    });
-    expect(deviceExp.get('key', '')).toEqual('v4');
-    expect(deviceExp.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Network,
-      time: now,
-    });
-    expect(expNonSticky.get('key', '')).toEqual('v4');
-    expect(expNonSticky.getEvaluationDetails()).toEqual({
-      reason: EvaluationReason.Network,
-      time: now,
-    });
-  });
-
-  test('test experiment sticky bucketing behavior when user changes', async () => {
-    expect.assertions(12);
-    const statsig = new StatsigClient(sdkKey, { userID: '456' });
-    await statsig.initializeAsync();
-    const store = statsig.getStore();
-
-    // getting values with flag set to false, should get latest values
-    store.save({ userID: '456' }, generateTestConfigs('v0', true, true));
-    expect(store.getExperiment('exp', false).get('key', '')).toEqual('v0');
-    expect(store.getExperiment('device_exp', false).get('key', '')).toEqual(
-      'v0',
-    );
-    expect(store.getExperiment('exp_non_stick', false).get('key', '')).toEqual(
-      'v0',
-    );
-
-    // update values, and then get with flag set to true. All values should update
-    store.save({ userID: '456' }, generateTestConfigs('v1', true, true));
-    expect(store.getExperiment('exp', true).get('key', '')).toEqual('v1');
-    expect(store.getExperiment('device_exp', true).get('key', '')).toEqual(
-      'v1',
-    );
-    expect(store.getExperiment('exp_non_stick', false).get('key', '')).toEqual(
-      'v1',
-    );
-
-    // update user. Only device value should stick
-    await statsig.updateUser({ userID: 'tore' });
-    store.save({ userID: 'tore' }, generateTestConfigs('v2', true, true));
-    expect(store.getExperiment('exp', true).get('key', '')).toEqual('v2');
-    expect(store.getExperiment('device_exp', true).get('key', '')).toEqual(
-      'v1',
-    );
-    expect(store.getExperiment('exp_non_stick', false).get('key', '')).toEqual(
-      'v2',
-    );
-
-    // update user back (don't await for the response), should get all the same values last time 456 got
-    statsig.updateUser({ userID: '456' });
-    expect(store.getExperiment('exp', true).get('key', '')).toEqual('v1');
-    expect(store.getExperiment('device_exp', true).get('key', '')).toEqual(
-      'v1',
-    );
-    expect(store.getExperiment('exp_non_stick', false).get('key', '')).toEqual(
-      'v1',
-    );
-  });
-
-  test('test experiment sticky bucketing behavior across sessions', async () => {
-    expect.assertions(9);
-    const statsig = new StatsigClient(sdkKey, { userID: '789' });
-    await statsig.initializeAsync();
-    const store = statsig.getStore();
-
-    store.save({ userID: '789' }, generateTestConfigs('v0', true, true));
-    expect(store.getExperiment('exp', true).get('key', '')).toEqual('v0');
-    expect(store.getExperiment('device_exp', true).get('key', '')).toEqual(
-      'v0',
-    );
-    expect(store.getExperiment('exp_non_stick', false).get('key', '')).toEqual(
-      'v0',
-    );
-
-    // re-create with a different user id. Only device experiments should stick
-    const statsig2 = new StatsigClient(sdkKey, { userID: 'tore' });
-    const store2 = statsig2.getStore();
-
-    store2.save({ userID: 'tore' }, generateTestConfigs('v1', true, true));
-    expect(store2.getExperiment('exp', true).get('key', '')).toEqual('v1');
-    expect(store2.getExperiment('device_exp', true).get('key', '')).toEqual(
-      'v0',
-    );
-    expect(store2.getExperiment('exp_non_stick', false).get('key', '')).toEqual(
-      'v1',
-    );
-
-    // update user back (don't await for the response), should get all the same values last time 789 got
-    statsig.updateUser({ userID: '789' });
-    expect(store.getExperiment('exp', true).get('key', '')).toEqual('v0');
-    expect(store.getExperiment('device_exp', true).get('key', '')).toEqual(
-      'v0',
-    );
-    expect(store.getExperiment('exp_non_stick', false).get('key', '')).toEqual(
-      'v0',
-    );
   });
 
   test('test user cache key when there are customIDs', async () => {
@@ -597,7 +286,7 @@ describe('Verify behavior of InternalStore', () => {
       customIDs: { deviceId: '' },
     });
     await statsig.initializeAsync();
-    const store = statsig.getStore();
+    const store = statsig._store;
 
     store.save(
       {
@@ -605,13 +294,9 @@ describe('Verify behavior of InternalStore', () => {
       },
       generateTestConfigs('v0', true, true),
     );
-    expect(store.getExperiment('exp', true).get('key', '')).toEqual('v0');
-    expect(store.getExperiment('device_exp', true).get('key', '')).toEqual(
-      'v0',
-    );
-    expect(store.getExperiment('exp_non_stick', false).get('key', '')).toEqual(
-      'v0',
-    );
+    expect(store.getConfig('exp').get('key', '')).toEqual('v0');
+    expect(store.getConfig('device_exp').get('key', '')).toEqual('v0');
+    expect(store.getConfig('exp_non_stick').get('key', '')).toEqual('v0');
 
     // updateUser with the same userID but different customID, non-device experiments should be updated
     await statsig.updateUser({
@@ -624,32 +309,24 @@ describe('Verify behavior of InternalStore', () => {
       },
       generateTestConfigs('v1', true, true),
     );
-    expect(store.getExperiment('exp', true).get('key', '')).toEqual('v1');
-    expect(store.getExperiment('device_exp', true).get('key', '')).toEqual(
-      'v0',
-    );
-    expect(store.getExperiment('exp_non_stick', false).get('key', '')).toEqual(
-      'v1',
-    );
+    expect(store.getConfig('exp').get('key', '')).toEqual('v1');
+    expect(store.getConfig('device_exp').get('key', '')).toEqual('v0');
+    expect(store.getConfig('exp_non_stick').get('key', '')).toEqual('v1');
 
     // update user back, should get same value with empty deviceId
     statsig.updateUser({
       customIDs: { deviceId: '' },
     });
-    expect(store.getExperiment('exp', true).get('key', '')).toEqual('v0');
-    expect(store.getExperiment('device_exp', true).get('key', '')).toEqual(
-      'v0',
-    );
-    expect(store.getExperiment('exp_non_stick', false).get('key', '')).toEqual(
-      'v0',
-    );
+    expect(store.getConfig('exp').get('key', '')).toEqual('v0');
+    expect(store.getConfig('device_exp').get('key', '')).toEqual('v0');
+    expect(store.getConfig('exp_non_stick').get('key', '')).toEqual('v0');
   });
 
   test('test that we purge the oldest cache when we have more than 10', async () => {
     expect.assertions(2);
     const statsig = new StatsigClient(sdkKey, { userID: '1' });
     await statsig.initializeAsync();
-    const store = statsig.getStore();
+    const store = statsig._store;
 
     await statsig.updateUser({ userID: '2' });
     store.save({ userID: '2' }, generateTestConfigs('v0', true, true));

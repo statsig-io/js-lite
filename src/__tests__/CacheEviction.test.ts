@@ -3,7 +3,7 @@
  */
 
 import StatsigClient from '../StatsigClient';
-import StatsigStore from '../StatsigStore';
+import { INTERNAL_STORE_KEY } from '../utils/Constants';
 import LocalStorageMock from './LocalStorageMock';
 import TestData from './basic_initialize_response.json';
 
@@ -16,7 +16,7 @@ describe('Cache Eviction', () => {
     Object.defineProperty(window, 'localStorage', { value: localStorage });
 
     const client = new StatsigClient('', {}, { localMode: true });
-    const store = new StatsigStore(client, null);
+    const store = client._store;
     for (let i = 0; i < 20; i++) {
       Date.now = jest.fn(() => i * 1000);
       await store.save(
@@ -36,9 +36,7 @@ describe('Cache Eviction', () => {
       );
     }
 
-    const json = JSON.parse(
-      localStorage.getItem('STATSIG_LOCAL_STORAGE_INTERNAL_STORE_V4')!,
-    );
+    const json = JSON.parse(localStorage.getItem(INTERNAL_STORE_KEY)!);
 
     keys = Object.keys(json);
     values = Object.values(json);
@@ -46,10 +44,6 @@ describe('Cache Eviction', () => {
 
   it('saves 10 users', () => {
     expect(keys.length).toBe(10);
-  });
-
-  it('has at least one negative cache key, ensuring cache is unordered', () => {
-    expect(keys.find((x) => parseInt(x) < 0)).toBeDefined();
   });
 
   it('evicts the first 10, not the last 10', async () => {

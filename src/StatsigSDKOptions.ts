@@ -24,10 +24,7 @@ export type StatsigOptions = {
   eventLoggingApi?: string;
   disableLocalStorage?: boolean;
   ignoreWindowUndefined?: boolean;
-  fetchMode?: FetchMode;
 };
-
-export type FetchMode = 'cache-or-network' | 'network-only';
 
 type BoundedNumberInput = {
   default: number;
@@ -51,7 +48,6 @@ export default class StatsigSDKOptions {
   readonly eventLoggingApi: string;
   readonly disableLocalStorage: boolean;
   readonly ignoreWindowUndefined: boolean;
-  readonly fetchMode: FetchMode;
 
   constructor(options?: StatsigOptions | null) {
     if (options == null) {
@@ -95,7 +91,6 @@ export default class StatsigSDKOptions {
       : eventLoggingApi + '/';
     this.disableLocalStorage = options.disableLocalStorage ?? false;
     this.ignoreWindowUndefined = options?.ignoreWindowUndefined ?? false;
-    this.fetchMode = options.fetchMode ?? 'network-only';
   }
 
   private normalizeNumberInput(

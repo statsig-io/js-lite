@@ -43,11 +43,4 @@ describe('Init Timeout Throwing', () => {
     const end = Date.now();
     expect(end - start).toBeLessThan(50);
   });
-
-  it('prefetch users does not throw or apply initialize timeout', async () => {
-    const start = Date.now();
-    await Statsig.prefetchUsers([{ userID: 'c-user' }]);
-    const end = Date.now();
-    expect(end - start).toBeGreaterThanOrEqual(NETWORK_TIME);
-  });
 });

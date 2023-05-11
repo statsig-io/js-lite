@@ -2,8 +2,8 @@
  * @jest-environment jsdom
  */
 
+import { EvaluationReason } from '..';
 import StatsigClient from '../StatsigClient';
-import Statsig, { EvaluationReason } from '..';
 
 describe('Verify behavior of StatsigClient when 204 returned from initialize', () => {
   const sdkKey = 'client-clienttestkey';
@@ -47,8 +47,6 @@ describe('Verify behavior of StatsigClient when 204 returned from initialize', (
   beforeEach(() => {
     jest.resetModules();
     parsedRequestBody = null;
-
-    Statsig.encodeIntializeCall = false;
   });
 
   test('Test status 204 response is a noop', async () => {

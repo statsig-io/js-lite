@@ -24,7 +24,7 @@ describe('Verify behavior of StatsigClient outside of browser environment', () =
     expect(client.checkGate('always_on_gate')).toBe(true);
     expect(client.checkGate('on_for_statsig_email')).toBe(true);
     expect(client.getConfig('test_config').get('number', 10)).toEqual(7);
-    expect(client.getConfig('test_config').getEvaluationDetails()).toEqual({
+    expect(client.getConfig('test_config')._evaluationDetails).toEqual({
       reason: EvaluationReason.Bootstrap,
       time: expect.any(Number),
     });
@@ -44,10 +44,7 @@ describe('Verify behavior of StatsigClient outside of browser environment', () =
       if (url.toString().includes('initialize')) {
         return Promise.resolve({
           ok: true,
-          text: () =>
-            Promise.resolve(
-              JSON.stringify(TestData),
-            ),
+          text: () => Promise.resolve(JSON.stringify(TestData)),
         });
       }
     });
@@ -64,7 +61,7 @@ describe('Verify behavior of StatsigClient outside of browser environment', () =
     await client.initializeAsync();
     // flush interval is setup
     // @ts-ignore
-    expect(client.getLogger().flushInterval).not.toBeNull();
+    expect(client._logger._flushInterval).not.toBeNull();
 
     // initialized from network (fetch mock)
     expect(client.checkGate('test_gate')).toBe(false);
@@ -72,7 +69,7 @@ describe('Verify behavior of StatsigClient outside of browser environment', () =
     expect(client.checkGate('always_on_gate')).toBe(true);
     expect(client.checkGate('on_for_statsig_email')).toBe(true);
     expect(client.getConfig('test_config').get('number', 10)).toEqual(7);
-    expect(client.getConfig('test_config').getEvaluationDetails()).toEqual({
+    expect(client.getConfig('test_config')._evaluationDetails).toEqual({
       reason: EvaluationReason.Network,
       time: expect.any(Number),
     });

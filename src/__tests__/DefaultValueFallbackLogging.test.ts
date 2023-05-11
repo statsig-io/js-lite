@@ -36,12 +36,10 @@ describe('On Default Value Fallback', () => {
 
     // @ts-ignore
     Statsig.instance = null;
-    await Statsig.initialize('client-key', user, {
-      disableDiagnosticsLogging: true,
-    });
+    await Statsig.initialize('client-key', user);
 
     // @ts-ignore
-    Statsig.instance.options.loggingBufferMaxSize = 1;
+    Statsig.instance._options.loggingBufferMaxSize = 1;
   });
 
   beforeEach(async () => {

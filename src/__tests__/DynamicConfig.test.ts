@@ -36,7 +36,7 @@ describe('Verify behavior of DynamicConfig', () => {
       time: Date.now(),
     });
     expect(config.getValue()).toStrictEqual({ test: 123 });
-    expect(config.getRuleID()).toStrictEqual('default');
+    expect(config._ruleID).toStrictEqual('default');
   });
 
   test('Test nonexistent keys', () => {

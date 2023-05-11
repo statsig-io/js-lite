@@ -19,11 +19,17 @@ export default function makeLogEvent(
   metadata: object | null = null,
   secondaryExposures?: Record<string, string>[],
 ): LogEvent {
+  let logUser = user;
+  if (logUser?.privateAttributes) {
+    logUser = { ...user };
+    delete logUser.privateAttributes;
+  }
+
   return {
     time: Date.now(),
     eventName,
     statsigMetadata,
-    user,
+    user: logUser,
     value,
     metadata,
     secondaryExposures,

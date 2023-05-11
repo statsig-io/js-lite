@@ -144,11 +144,11 @@ describe('Verify local storage limits are enforced', () => {
     );
   });
 
-  test.only('Verify loading a large list gets truncated', async () => {
-    expect.assertions(17);
+  test('Verify loading a large list gets truncated', async () => {
+    expect.assertions(16);
     const client = new StatsigClient(sdkKey, null);
     await client.initializeAsync();
-    const store = client.getStore();
+    const store = client._store;
     expect(store).not.toBeNull();
     const storeObject = JSON.parse(
       localStorage.getItem(INTERNAL_STORE_KEY) ?? '',
@@ -207,7 +207,7 @@ describe('Verify local storage limits are enforced', () => {
     ).toEqual(10);
 
     expect(
-      client.getCurrentUserCacheKey() in
+      client._identity.getUserCacheKey() in
         JSON.parse(localStorage.getItem(INTERNAL_STORE_KEY) ?? ''),
     ).toBeTruthy();
 
@@ -231,8 +231,5 @@ describe('Verify local storage limits are enforced', () => {
     ).toEqual(10);
 
     noStorageClient.shutdown();
-
-    // we clear out the local storage after this session if shutdown is called with disableLocalStorage
-    expect(localStorage.getItem(INTERNAL_STORE_KEY)).toBeNull();
   });
 });

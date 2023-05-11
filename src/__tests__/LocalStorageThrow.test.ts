@@ -6,7 +6,8 @@ import StatsigClient from '../StatsigClient';
 import { STATSIG_STABLE_ID_KEY } from '../utils/Constants';
 import StatsigLocalStorage from '../utils/StatsigLocalStorage';
 
-jest.mock('uuid', () => ({ v4: () => '00000000-0000-0000-0000-000000000420' }));
+const GUID_REGEX =
+  /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}/; // uuid 4 formats
 
 describe('Verify local storage limits are enforced', () => {
   class LocalStorageMock {
@@ -61,7 +62,7 @@ describe('Verify local storage limits are enforced', () => {
         localStorage.getItem('any');
       }).toThrowError('SecurityException');
       const stable_id = StatsigLocalStorage.getItem(STATSIG_STABLE_ID_KEY);
-      expect(stable_id).toEqual('00000000-0000-0000-0000-000000000420');
+      expect(stable_id).toMatch(GUID_REGEX);
 
       expect(() => {
         StatsigLocalStorage.removeItem('I_DONT_EXIST');

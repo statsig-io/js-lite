@@ -2,17 +2,17 @@
  * @jest-environment jsdom
  */
 
-import Statsig from '..';
 import StatsigClient from '../StatsigClient';
 import { INTERNAL_STORE_KEY } from '../utils/Constants';
+import { getHashValue } from '../utils/Hashing';
 import LocalStorageMock from './LocalStorageMock';
 
 const makeResponse = (ruleID: string, value: string) => {
   return JSON.stringify({
     feature_gates: {},
     dynamic_configs: {
-      'klGzwI7eIlw4LSeTwhb4C0NCIhHJrIf441Dni6g7DkE=': {
-        name: 'klGzwI7eIlw4LSeTwhb4C0NCIhHJrIf441Dni6g7DkE=',
+      [getHashValue('a_config')]: {
+        name: getHashValue('a_config'),
         value: { a_key: value },
         rule_id: ruleID,
         group: 'a_group',
@@ -91,20 +91,15 @@ describe('Race conditions between initializeAsync and updateUser', () => {
   });
 
   it('does not overwrite user values when unawaited response return', async () => {
-    Statsig.encodeIntializeCall = false;
-    const client = new StatsigClient(
-      'client-key',
-      {
-        userID: 'user-a',
-        customIDs: { workID: 'employee-a' },
-      },
-      { disableDiagnosticsLogging: true },
-    );
+    const client = new StatsigClient('client-key', {
+      userID: 'user-a',
+      customIDs: { workID: 'employee-a' },
+    });
 
     // Call both without awaiting either
     client.initializeAsync();
 
-    const firstUserCacheKey = client.getCurrentUserCacheKey();
+    const firstUserCacheKey = client._identity.getUserCacheKey();
     let config = client.getExperiment('a_config');
     expect(config.getValue('a_key', 'default_value')).toEqual('default_value');
     expect(getCurrentInternalStore()).toBeNull();
@@ -114,7 +109,7 @@ describe('Race conditions between initializeAsync and updateUser', () => {
       customIDs: { workID: 'employee-b' },
     });
 
-    const secondUserCacheKey = client.getCurrentUserCacheKey();
+    const secondUserCacheKey = client._identity.getUserCacheKey();
     config = client.getExperiment('a_config');
     expect(config.getValue('a_key', 'default_value')).toEqual('default_value');
     expect(getCurrentInternalStore()).toBeNull();
