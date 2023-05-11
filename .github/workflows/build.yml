@@ -20,7 +20,6 @@ jobs:
           path: ~/.npm
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
       - run: npm ci
-      - run: npm run build:dryrun
       - name: Build Size Check
         run: |
-          [[ $(stat -f%z "build/statsig-prod-web-sdk.js"  ) -gt 51200 ]] && echo "File is bigger than 50kb" && exit 1
+          [[ $(stat -c%s "build/statsig-prod-web-sdk.js"  ) -gt 51200 ]] && echo "File is bigger than 50kb" && exit 1
