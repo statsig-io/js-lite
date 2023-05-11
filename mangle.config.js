@@ -4,7 +4,6 @@ module.exports = {
     'statsig',
     'Statsig',
     'initialize',
-    'prefetchUsers',
     'setInitializeValues',
     'checkGate',
     'checkGateWithExposureLoggingDisabled',

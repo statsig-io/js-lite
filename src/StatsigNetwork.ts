@@ -62,11 +62,9 @@ export default class StatsigNetwork {
     user: StatsigUser | null,
     sinceTime: number | null,
     timeout: number,
-    prefetchUsers?: Record<string, StatsigUser>,
   ): PromiseWithTimeout<Record<string, any>> {
     const input = {
       user,
-      prefetchUsers,
       statsigMetadata: this._identity._statsigMetadata,
       sinceTime: sinceTime ?? undefined,
       hash: 'djb2',

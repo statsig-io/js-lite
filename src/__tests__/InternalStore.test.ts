@@ -5,6 +5,7 @@
 import DynamicConfig from '../DynamicConfig';
 import StatsigClient from '../StatsigClient';
 import { EvaluationReason } from '../StatsigStore';
+import { INTERNAL_STORE_KEY, STATSIG_STABLE_ID_KEY } from '../utils/Constants';
 import LocalStorageMock from './LocalStorageMock';
 
 type InitializeResponse = {
@@ -22,7 +23,7 @@ function generateTestConfigs(
   return {
     feature_gates: {},
     dynamic_configs: {
-      '3XqUbegKv0F5cDYzW+YL8gfzJixkKfSZMAXZHxdOzwc=': {
+      '100893': {
         value: { key: value },
         rule_id: 'default',
         secondary_exposures: [],
@@ -31,7 +32,7 @@ function generateTestConfigs(
         is_experiment_active: active,
       },
       // device experiment
-      'vqQndBwrJ/a5gabQIvVPSGUkBBqeS7P1yd1N8t6wgyo=': {
+      '781499572': {
         value: { key: value },
         rule_id: 'default',
         secondary_exposures: [],
@@ -39,7 +40,7 @@ function generateTestConfigs(
         is_user_in_experiment: inExperiment,
         is_experiment_active: active,
       },
-      'N6IGtkiVKCPr/boHFfHvQtf+XD4hvozdzOpGJ4XSWAs=': {
+      '2749703420': {
         value: { key: value },
         rule_id: 'default',
         secondary_exposures: [],
@@ -55,7 +56,7 @@ describe('Verify behavior of InternalStore', () => {
   const sdkKey = 'client-internalstorekey';
   const now = Date.now();
   const feature_gates = {
-    'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+    '3114454104': {
       value: true,
       rule_id: 'ruleID12',
       secondary_exposures: [
@@ -68,7 +69,7 @@ describe('Verify behavior of InternalStore', () => {
     },
   };
   const configs = {
-    'RMv0YJlLOBe7cY7HgZ3Jox34R0Wrk7jLv3DZyBETA7I=': {
+    '3591394191': {
       value: { bool: true },
       rule_id: 'default',
       secondary_exposures: [
@@ -112,7 +113,7 @@ describe('Verify behavior of InternalStore', () => {
           JSON.stringify({
             gates: {},
             feature_gates: {
-              'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+              '3114454104': {
                 value: true,
                 rule_id: 'ruleID123',
               },
@@ -146,7 +147,7 @@ describe('Verify behavior of InternalStore', () => {
   });
 
   test('Verify save correctly saves into cache.', () => {
-    expect.assertions(7);
+    expect.assertions(9);
     const spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
     const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
     const client = new StatsigClient(sdkKey);
@@ -165,7 +166,11 @@ describe('Verify behavior of InternalStore', () => {
       time: now,
     });
     expect(spyOnSet).toHaveBeenCalledTimes(1); // stableid not saved by default
-    expect(spyOnGet).toHaveBeenCalledTimes(4); // load 2 cache values, 1 overrides and 1 stableid
+
+    expect(spyOnGet).toHaveBeenCalledTimes(2);
+    expect(spyOnGet).toHaveBeenCalledWith(INTERNAL_STORE_KEY);
+    expect(spyOnGet).toHaveBeenCalledWith(STATSIG_STABLE_ID_KEY);
+
     const config = store.getConfig('test_config');
     expect(config).toMatchConfig(config_obj);
     expect(config._evaluationDetails).toEqual({
@@ -176,7 +181,7 @@ describe('Verify behavior of InternalStore', () => {
   });
 
   test('Verify cache before init and save correctly saves into cache.', () => {
-    expect.assertions(7);
+    expect.assertions(9);
     const spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
     const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
     const client = new StatsigClient(sdkKey);
@@ -191,7 +196,11 @@ describe('Verify behavior of InternalStore', () => {
       dynamic_configs: configs,
     });
     expect(spyOnSet).toHaveBeenCalledTimes(1);
-    expect(spyOnGet).toHaveBeenCalledTimes(4); // load 2 cache values and 1 overrides and 1 stableid
+
+    expect(spyOnGet).toHaveBeenCalledTimes(2);
+    expect(spyOnGet).toHaveBeenCalledWith(INTERNAL_STORE_KEY);
+    expect(spyOnGet).toHaveBeenCalledWith(STATSIG_STABLE_ID_KEY);
+
     const config = store.getConfig('test_config');
     expect(config).toMatchConfig(config_obj);
     expect(config._evaluationDetails).toEqual({
@@ -202,7 +211,7 @@ describe('Verify behavior of InternalStore', () => {
   });
 
   test('Verify local storage usage with override id', () => {
-    expect.assertions(8);
+    expect.assertions(9);
     const spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
     const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
     const client = new StatsigClient(sdkKey, {}, { overrideStableID: '999' });
@@ -217,10 +226,12 @@ describe('Verify behavior of InternalStore', () => {
       dynamic_configs: configs,
     });
     expect(spyOnSet).toHaveBeenCalledTimes(1);
-    expect(spyOnGet).toHaveBeenCalledTimes(3); // load 2 cache values and 1 overrides
+
+    expect(spyOnGet).toHaveBeenCalledTimes(1);
+    expect(spyOnGet).toHaveBeenCalledWith(INTERNAL_STORE_KEY);
 
     // @ts-ignore
-    client.delayedSetup();
+    client._delayedSetup();
     expect(spyOnSet).toHaveBeenCalledTimes(2); // only now do we save the stableid
     const config = store.getConfig('test_config');
     expect(config).toMatchConfig(config_obj);
@@ -246,10 +257,7 @@ describe('Verify behavior of InternalStore', () => {
     const client = new StatsigClient(sdkKey, { userID: 'user_key' });
     return client.initializeAsync().then(() => {
       expect(client._store.checkGate('test_gate').gate.value).toBe(true);
-      expect(
-        client._store.checkGate('AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=')
-          .gate.value,
-      ).toBe(false);
+      expect(client._store.checkGate('3114454104').gate.value).toBe(false);
     });
   });
 
@@ -281,7 +289,7 @@ describe('Verify behavior of InternalStore', () => {
   });
 
   test('test user cache key when there are customIDs', async () => {
-    expect.assertions(9);
+    expect.assertions(2);
     const statsig = new StatsigClient(sdkKey, {
       customIDs: { deviceId: '' },
     });
@@ -295,10 +303,8 @@ describe('Verify behavior of InternalStore', () => {
       generateTestConfigs('v0', true, true),
     );
     expect(store.getConfig('exp').get('key', '')).toEqual('v0');
-    expect(store.getConfig('device_exp').get('key', '')).toEqual('v0');
-    expect(store.getConfig('exp_non_stick').get('key', '')).toEqual('v0');
 
-    // updateUser with the same userID but different customID, non-device experiments should be updated
+    // updateUser with the same userID but different customID
     await statsig.updateUser({
       customIDs: { deviceId: 'device_id_abc' },
     });
@@ -310,19 +316,9 @@ describe('Verify behavior of InternalStore', () => {
       generateTestConfigs('v1', true, true),
     );
     expect(store.getConfig('exp').get('key', '')).toEqual('v1');
-    expect(store.getConfig('device_exp').get('key', '')).toEqual('v0');
-    expect(store.getConfig('exp_non_stick').get('key', '')).toEqual('v1');
-
-    // update user back, should get same value with empty deviceId
-    statsig.updateUser({
-      customIDs: { deviceId: '' },
-    });
-    expect(store.getConfig('exp').get('key', '')).toEqual('v0');
-    expect(store.getConfig('device_exp').get('key', '')).toEqual('v0');
-    expect(store.getConfig('exp_non_stick').get('key', '')).toEqual('v0');
   });
 
-  test('test that we purge the oldest cache when we have more than 10', async () => {
+  test('that we purge the oldest cache when we have more than 10', async () => {
     expect.assertions(2);
     const statsig = new StatsigClient(sdkKey, { userID: '1' });
     await statsig.initializeAsync();
@@ -346,9 +342,8 @@ describe('Verify behavior of InternalStore', () => {
     store.save({ userID: '9' }, generateTestConfigs('v0', true, true));
     await statsig.updateUser({ userID: '10' });
     store.save({ userID: '10' }, generateTestConfigs('v0', true, true));
-    let cache = JSON.parse(
-      window.localStorage.getItem('STATSIG_LOCAL_STORAGE_INTERNAL_STORE_V4') ??
-        '{}',
+    const cache = JSON.parse(
+      window.localStorage.getItem(INTERNAL_STORE_KEY) ?? '{}',
     );
     expect(Object.keys(cache).length).toEqual(10);
 

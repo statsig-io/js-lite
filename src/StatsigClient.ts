@@ -337,7 +337,7 @@ export default class StatsigClient {
     }
 
     if (this._options.environment != null) {
-      userCopy.statsigEnvironment = this._options.environment;
+      userCopy = { ...userCopy, statsigEnvironment: this._options.environment };
     }
     return userCopy as StatsigUser;
   }

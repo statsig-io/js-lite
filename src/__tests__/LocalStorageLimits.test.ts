@@ -10,7 +10,7 @@ import LocalStorageMock from './LocalStorageMock';
 describe('Verify local storage limits are enforced', () => {
   const sdkKey = 'client-internalstorekey';
   const gates = {
-    'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+    '3114454104': {
       value: true,
       rule_id: 'ruleID12',
       secondary_exposures: [
@@ -23,7 +23,7 @@ describe('Verify local storage limits are enforced', () => {
     },
   };
   const configs = {
-    'RMv0YJlLOBe7cY7HgZ3Jox34R0Wrk7jLv3DZyBETA7I=': {
+    '3591394191': {
       value: { bool: true },
       rule_id: 'default',
       secondary_exposures: [
@@ -50,7 +50,7 @@ describe('Verify local storage limits are enforced', () => {
         Promise.resolve(
           JSON.stringify({
             feature_gates: {
-              'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+              '3114454104': {
                 value: true,
                 rule_id: 'ruleID123',
               },

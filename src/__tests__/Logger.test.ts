@@ -31,13 +31,13 @@ describe('Verify behavior of StatsigLogger', () => {
           JSON.stringify({
             gates: {},
             feature_gates: {
-              'AoZS0F06Ub+W2ONx+94rPTS7MRxuxa+GnXro5Q1uaGY=': {
+              '3114454104': {
                 value: true,
                 rule_id: 'ruleID123',
               },
             },
             dynamic_configs: {
-              'RMv0YJlLOBe7cY7HgZ3Jox34R0Wrk7jLv3DZyBETA7I=': {
+              '3591394191': {
                 value: { bool: true },
                 rule_id: 'default',
               },
