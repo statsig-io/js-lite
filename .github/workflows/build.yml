@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v2
+      
       - name: cache .npm
         uses: actions/cache@v2
         env:
@@ -19,7 +20,8 @@ jobs:
         with:
           path: ~/.npm
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+      
       - run: npm ci
+      
       - name: Build Size Check
-        run: |
-          [[ $(stat -c%s "build/statsig-prod-web-sdk.js"  ) -gt 51200 ]] && echo "File is bigger than 50kb" && exit 1
+        run: npm run size-check
