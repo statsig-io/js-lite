@@ -35,20 +35,73 @@ export default class Statsig {
     Statsig._getClientX().setInitializeValues(initializeValues);
   }
 
+  // Gate
+
   public static checkGate(gateName: string): boolean {
     return Statsig._getClientX().checkGate(gateName);
   }
+
+  public static checkGateWithExposureLoggingDisabled(
+    gateName: string,
+  ): boolean {
+    return Statsig._getClientX().checkGateWithExposureLoggingDisabled(gateName);
+  }
+
+  public static manuallyLogGateExposure(gateName: string) {
+    Statsig._getClientX().logGateExposure(gateName);
+  }
+
+  // Config
 
   public static getConfig(configName: string): DynamicConfig {
     return Statsig._getClientX().getConfig(configName);
   }
 
-  public static getExperiment(experimentName: string): DynamicConfig {
-    return Statsig._getClientX().getConfig(experimentName);
+  public static getConfigWithExposureLoggingDisabled(
+    configName: string,
+  ): DynamicConfig {
+    return Statsig._getClientX().getConfigWithExposureLoggingDisabled(
+      configName,
+    );
   }
+
+  public static manuallyLogConfigExposure(configName: string) {
+    Statsig._getClientX().logConfigExposure(configName);
+  }
+
+  // Experiment
+
+  public static getExperiment(experimentName: string): DynamicConfig {
+    return Statsig._getClientX().getExperiment(experimentName);
+  }
+
+  public static getExperimentWithExposureLoggingDisabled(
+    experimentName: string,
+  ): DynamicConfig {
+    return Statsig._getClientX().getExperimentWithExposureLoggingDisabled(
+      experimentName,
+    );
+  }
+
+  public static manuallyLogExperimentExposure(configName: string) {
+    Statsig._getClientX().logExperimentExposure(configName);
+  }
+
+  // Layer
 
   public static getLayer(layerName: string): Layer {
     return Statsig._getClientX().getLayer(layerName);
+  }
+
+  public static getLayerWithExposureLoggingDisabled(layerName: string): Layer {
+    return Statsig._getClientX().getLayerWithExposureLoggingDisabled(layerName);
+  }
+
+  public static manuallyLogLayerParameterExposure(
+    layerName: string,
+    parameterName: string,
+  ) {
+    Statsig._getClientX().logLayerParameterExposure(layerName, parameterName);
   }
 
   public static logEvent(

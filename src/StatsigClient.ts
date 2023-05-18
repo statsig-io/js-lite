@@ -177,15 +177,20 @@ export default class StatsigClient {
    * @throws Error if initialize() is not called first, or gateName is not a string
    */
   public checkGate(gateName: string): boolean {
-    return this._errorBoundary._capture(
-      'checkGate',
-      () => {
-        const result = this._checkGateImpl(gateName);
-        this._logGateExposureImpl(gateName, result);
-        return result.gate.value === true;
-      },
-      () => false,
+    return this._checkGateImpl(gateName, 'checkGate');
+  }
+
+  public checkGateWithExposureLoggingDisabled(gateName: string): boolean {
+    return this._checkGateImpl(
+      gateName,
+      'checkGateWithExposureLoggingDisabled',
     );
+  }
+
+  public logGateExposure(gateName: string) {
+    this._errorBoundary._swallow('logGateExposure', () => {
+      this._logGateExposureImpl(gateName);
+    });
   }
 
   /**
@@ -195,33 +200,51 @@ export default class StatsigClient {
    * @throws Error if initialize() is not called first, or configName is not a string
    */
   public getConfig(configName: string): DynamicConfig {
-    return this._errorBoundary._capture(
-      'getConfig',
-      () => {
-        const result = this._getConfigImpl(configName);
-        this._logConfigExposureImpl(configName, result);
-        return result;
-      },
-      () => this._getEmptyConfig(configName),
+    return this._getConfigImpl(configName, 'getConfig');
+  }
+
+  public getConfigWithExposureLoggingDisabled(
+    configName: string,
+  ): DynamicConfig {
+    return this._getConfigImpl(
+      configName,
+      'getConfigWithExposureLoggingDisabled',
     );
   }
 
-  public getExperiment(configName: string): DynamicConfig {
-    return this.getConfig(configName);
+  public logConfigExposure(configName: string) {
+    this._errorBoundary._swallow('logConfigExposure', () => {
+      this._logConfigExposureImpl(configName);
+    });
+  }
+
+  public getExperiment(experimentName: string): DynamicConfig {
+    return this.getConfig(experimentName);
+  }
+
+  public getExperimentWithExposureLoggingDisabled(
+    experimentName: string,
+  ): DynamicConfig {
+    return this.getConfigWithExposureLoggingDisabled(experimentName);
+  }
+
+  public logExperimentExposure(experimentName: string) {
+    this.logConfigExposure(experimentName);
   }
 
   public getLayer(layerName: string): Layer {
-    return this._errorBoundary._capture(
-      'getLayer',
-      () => {
-        return this._getLayerImpl(
-          this._logLayerParameterExposureForLayer,
-          layerName,
-        );
-      },
-      () =>
-        Layer._create(layerName, {}, '', this._getEvaluationDetailsForError()),
-    );
+    return this._getLayerImpl(layerName, 'getLayer');
+  }
+
+  public getLayerWithExposureLoggingDisabled(layerName: string): Layer {
+    return this._getLayerImpl(layerName, 'getLayerWithExposureLoggingDisabled');
+  }
+
+  public logLayerParameterExposure(layerName: string, parameterName: string) {
+    this._errorBoundary._swallow('logLayerParameterExposure', () => {
+      const layer = this._getLayerFromStore(null, layerName);
+      this._logLayerParameterExposureForLayer(layer, parameterName, true);
+    });
   }
 
   public logEvent(
@@ -384,7 +407,24 @@ export default class StatsigClient {
       });
   }
 
-  private _checkGateImpl(gateName: string): StoreGateFetchResult {
+  private _checkGateImpl(
+    gateName: string,
+    callsite: 'checkGate' | 'checkGateWithExposureLoggingDisabled',
+  ) {
+    return this._errorBoundary._capture(
+      callsite,
+      () => {
+        const result = this._getGateFromStore(gateName);
+        if (callsite === 'checkGate') {
+          this._logGateExposureImpl(gateName, result);
+        }
+        return result.gate.value === true;
+      },
+      () => false,
+    );
+  }
+
+  private _getGateFromStore(gateName: string): StoreGateFetchResult {
     this._ensureStoreLoaded();
     if (typeof gateName !== 'string' || gateName.length === 0) {
       throw new StatsigInvalidArgumentError(
@@ -399,7 +439,7 @@ export default class StatsigClient {
     fetchResult?: StoreGateFetchResult,
   ) {
     const isManualExposure = !fetchResult;
-    const result = fetchResult ?? this._checkGateImpl(gateName);
+    const result = fetchResult ?? this._getGateFromStore(gateName);
     const gate = result.gate;
 
     this._logger.logGateExposure(
@@ -413,7 +453,24 @@ export default class StatsigClient {
     );
   }
 
-  private _getConfigImpl(configName: string): DynamicConfig {
+  private _getConfigImpl(
+    configName: string,
+    callsite: 'getConfig' | 'getConfigWithExposureLoggingDisabled',
+  ): DynamicConfig {
+    return this._errorBoundary._capture(
+      callsite,
+      () => {
+        const result = this._getConfigFromStore(configName);
+        if (callsite === 'getConfig') {
+          this._logConfigExposureImpl(configName, result);
+        }
+        return result;
+      },
+      () => this._getEmptyConfig(configName),
+    );
+  }
+
+  private _getConfigFromStore(configName: string): DynamicConfig {
     this._ensureStoreLoaded();
     if (typeof configName !== 'string' || configName.length === 0) {
       throw new StatsigInvalidArgumentError(
@@ -426,7 +483,7 @@ export default class StatsigClient {
 
   private _logConfigExposureImpl(configName: string, config?: DynamicConfig) {
     const isManualExposure = !config;
-    const localConfig = config ?? this._getConfigImpl(configName);
+    const localConfig = config ?? this._getConfigFromStore(configName);
 
     this._logger.logConfigExposure(
       this._identity._user,
@@ -439,6 +496,24 @@ export default class StatsigClient {
   }
 
   private _getLayerImpl(
+    layerName: string,
+    callsite: 'getLayer' | 'getLayerWithExposureLoggingDisabled',
+  ) {
+    return this._errorBoundary._capture(
+      callsite,
+      () => {
+        const logFunc =
+          callsite === 'getLayer'
+            ? this._logLayerParameterExposureForLayer
+            : null;
+        return this._getLayerFromStore(logFunc, layerName);
+      },
+      () =>
+        Layer._create(layerName, {}, '', this._getEvaluationDetailsForError()),
+    );
+  }
+
+  private _getLayerFromStore(
     logParameterFunction: LogParameterFunction | null,
     layerName: string,
   ): Layer {
