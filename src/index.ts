@@ -116,6 +116,13 @@ export default class Statsig {
     return Statsig._getClientX().updateUser(user);
   }
 
+  public static updateUserWithValues(
+    user: StatsigUser | null,
+    values: Record<string, unknown>,
+  ): boolean {
+    return Statsig._getClientX().updateUserWithValues(user, values);
+  }
+
   public static shutdown() {
     Statsig._getClientX().shutdown();
     Statsig.instance = null;
