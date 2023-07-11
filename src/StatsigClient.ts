@@ -1,6 +1,7 @@
 import DynamicConfig from './DynamicConfig';
 import ErrorBoundary from './ErrorBoundary';
 import {
+  StatsigErrorMessage,
   StatsigInvalidArgumentError,
   StatsigUninitializedError,
 } from './Errors';
@@ -255,7 +256,7 @@ export default class StatsigClient {
     this._errorBoundary._swallow('logEvent', () => {
       if (!this._logger || !this._identity._sdkKey) {
         throw new StatsigUninitializedError(
-          'Must initialize() before logging events.',
+          StatsigErrorMessage.REQUIRE_INITIALIZE_FOR_LOG_EVENT,
         );
       }
       if (typeof eventName !== 'string' || eventName.length === 0) {
@@ -272,13 +273,65 @@ export default class StatsigClient {
     });
   }
 
+  public updateUserWithValues(
+    user: StatsigUser | null,
+    values: Record<string, unknown>,
+  ): boolean {
+    const updateStartTime = Date.now();
+    let fireCompletionCallback: (
+      success: boolean,
+      error: string | null,
+    ) => void | null;
+
+    return this._errorBoundary._capture(
+      'updateUserWithValues',
+      () => {
+        if (!this.initializeCalled()) {
+          throw new StatsigUninitializedError(
+            StatsigErrorMessage.REQUIRE_ASYNC_INITIALIZE,
+          );
+        }
+
+        fireCompletionCallback = (success: boolean, error: string | null) => {
+          const cb = this._options.updateUserCompletionCallback;
+          cb?.(Date.now() - updateStartTime, success, error);
+        };
+
+        this._identity._user = this._normalizeUser(user);
+        this._store.bootstrap(values);
+        fireCompletionCallback(true, null);
+        return true;
+      },
+      () => {
+        fireCompletionCallback?.(
+          false,
+          'Failed to update user. An unexpected error occured.',
+        );
+        return false;
+      },
+    );
+  }
+
   public async updateUser(user: StatsigUser | null): Promise<boolean> {
+    const updateStartTime = Date.now();
+    let fireCompletionCallback: (
+      success: boolean,
+      error: string | null,
+    ) => void | null;
+
     return this._errorBoundary._capture(
       'updateUser',
       async () => {
         if (!this.initializeCalled()) {
-          throw new StatsigUninitializedError('Call initialize() first.');
+          throw new StatsigUninitializedError(
+            StatsigErrorMessage.REQUIRE_ASYNC_INITIALIZE,
+          );
         }
+
+        fireCompletionCallback = (success: boolean, error: string | null) => {
+          const cb = this._options.updateUserCompletionCallback;
+          cb?.(Date.now() - updateStartTime, success, error);
+        };
 
         this._identity._user = this._normalizeUser(user);
         this._store.updateUser();
@@ -289,6 +342,7 @@ export default class StatsigClient {
         }
 
         if (this._options.localMode) {
+          fireCompletionCallback(true, null);
           return Promise.resolve(true);
         }
 
@@ -301,13 +355,19 @@ export default class StatsigClient {
 
         return this._pendingInitPromise
           .then(() => {
+            fireCompletionCallback(true, null);
             return Promise.resolve(true);
           })
           .catch((error) => {
+            fireCompletionCallback(false, `Failed to update user: ${error}`);
             return Promise.resolve(false);
           });
       },
       () => {
+        fireCompletionCallback(
+          false,
+          'Failed to update user. An unexpected error occured.',
+        );
         return Promise.resolve(false);
       },
     );
@@ -367,9 +427,7 @@ export default class StatsigClient {
 
   private _ensureStoreLoaded(): void {
     if (!this._store.isLoaded()) {
-      throw new StatsigUninitializedError(
-        'Call and wait for initialize() to finish first.',
-      );
+      throw new StatsigUninitializedError();
     }
   }
 
