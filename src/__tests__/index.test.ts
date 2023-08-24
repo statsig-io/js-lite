@@ -55,7 +55,7 @@ describe('Verify behavior of top level index functions', () => {
 
   test('Verify checkGate throws when calling before initialize', () => {
     expect(() => {
-      statsig.checkGate('gate_that_doesnt_exist');
+      statsig.checkGate(null, 'gate_that_doesnt_exist');
     }).toThrowError('Call and wait for initialize() to finish first.');
     // @ts-ignore
     expect(statsig.instance).toBeNull();
@@ -110,10 +110,10 @@ describe('Verify behavior of top level index functions', () => {
   test('Verify getConfig and getExperiment throw when calling before initialize', () => {
     expect.assertions(3);
     expect(() => {
-      statsig.getConfig('config_that_doesnt_exist');
+      statsig.getConfig(null, 'config_that_doesnt_exist');
     }).toThrowError('Call and wait for initialize() to finish first.');
     expect(() => {
-      statsig.getExperiment('config_that_doesnt_exist');
+      statsig.getExperiment(null, 'config_that_doesnt_exist');
     }).toThrowError('Call and wait for initialize() to finish first.');
     // @ts-ignore
     expect(statsig.instance).toBeNull();
@@ -121,7 +121,7 @@ describe('Verify behavior of top level index functions', () => {
 
   test('Verify logEvent throws if called before initialize()', () => {
     expect(() => {
-      statsig.logEvent('test_event');
+      statsig.logEvent(null, 'test_event');
     }).toThrowError('Call and wait for initialize() to finish first.');
     // @ts-ignore
     expect(statsig.instance).toBeNull();
@@ -130,7 +130,7 @@ describe('Verify behavior of top level index functions', () => {
   test('Verify checkGate() returns the correct value under correct circumstances', () => {
     expect.assertions(4);
     return statsig
-      .initialize('client-key', {email: 'test@statsig.com'}, { disableCurrentPageLogging: true })
+      .initialize('client-key', { disableCurrentPageLogging: true })
       .then(() => {
         // @ts-ignore
         const ready = statsig.instance._ready;
@@ -153,7 +153,7 @@ describe('Verify behavior of top level index functions', () => {
           [],
         );
 
-        const gateValue = statsig.checkGate('test_gate');
+        const gateValue = statsig.checkGate({email: 'test@statsig.com'}, 'test_gate');
         expect(gateValue).toBe(true);
         expect(spy).toHaveBeenCalledTimes(1);
         expect(spy).toHaveBeenCalledWith(gateExposure);
@@ -173,7 +173,7 @@ describe('Verify behavior of top level index functions', () => {
     expect.assertions(4);
 
     return statsig
-      .initialize('client-key', null, { disableCurrentPageLogging: true })
+      .initialize('client-key', { disableCurrentPageLogging: true })
       .then(() => {
         // @ts-ignore
         const ready = statsig.instance._ready;
@@ -196,7 +196,7 @@ describe('Verify behavior of top level index functions', () => {
           [],
         );
 
-        const config = statsig.getConfig('test_config');
+        const config = statsig.getConfig(null, 'test_config');
         expect(config?.value).toStrictEqual({
           bool: true,
           number: 2,
@@ -220,7 +220,7 @@ describe('Verify behavior of top level index functions', () => {
     expect.assertions(4);
 
     return statsig
-      .initialize('client-key', null, { disableCurrentPageLogging: true })
+      .initialize('client-key', { disableCurrentPageLogging: true })
       .then(() => {
         // @ts-ignore
         const ready = statsig.instance._ready;
@@ -242,7 +242,7 @@ describe('Verify behavior of top level index functions', () => {
           [],
         );
 
-        const exp = statsig.getExperiment('test_config');
+        const exp = statsig.getExperiment(null, 'test_config');
         expect(exp?.value).toStrictEqual({
           bool: true,
           number: 2,
@@ -279,15 +279,16 @@ describe('Verify behavior of top level index functions', () => {
 
   test('shutdown does flush logs and they are correct', async () => {
     expect.assertions(8);
-    await statsig.initialize('client-key', {
+    const user = {
       userID: '12345',
       country: 'US',
       email: 'test@statsig.com',
       custom: { key: 'value' },
       privateAttributes: { private: 'value' },
-    });
-    expect(statsig.checkGate('test_gate')).toEqual(true);
-    const config = statsig.getConfig('test_config');
+    };
+    await statsig.initialize('client-key');
+    expect(statsig.checkGate(user, 'test_gate')).toEqual(true);
+    const config = statsig.getConfig(user, 'test_config');
     expect(config?.value).toStrictEqual({
       bool: true,
       number: 2,
@@ -302,7 +303,7 @@ describe('Verify behavior of top level index functions', () => {
       numberStr2: '3.3',
       numberStr3: '3.3.3',
     });
-    statsig.logEvent('test_event', 'value', { key: 'value' });
+    statsig.logEvent(user, 'test_event', 'value', { key: 'value' });
     statsig.shutdown();
     expect(postedLogs['events'].length).toEqual(3);
     expect(postedLogs['events'][0]).toEqual(
@@ -381,7 +382,6 @@ describe('Verify behavior of top level index functions', () => {
   test('set and get stableID', async () => {
     await statsig.initialize(
       'client-key',
-      { userID: '123' },
       { overrideStableID: '666' },
     );
     expect(statsig.getStableID()).toEqual('666');

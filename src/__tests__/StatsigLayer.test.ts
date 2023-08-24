@@ -67,6 +67,8 @@ const initialResponse = {
 describe.skip('Statsig Layers', () => {
   var client: StatsigClient;
 
+  const user = { userID: 'dloomb' };
+
   const localStorage = new LocalStorageMock();
   // @ts-ignore
   Object.defineProperty(window, 'localStorage', {
@@ -84,15 +86,15 @@ describe.skip('Statsig Layers', () => {
   beforeEach(async () => {
     jest.resetModules();
     window.localStorage.clear();
-    client = new StatsigClient('client-key', { userID: 'dloomb' });
+    client = new StatsigClient('client-key', );
     await client.initializeAsync();
   });
 
   it('returns experiment values when allocated', () => {
-    let config = client.getLayer(layerConfigWithExperimentKey);
+    let config = client.getLayer(user, layerConfigWithExperimentKey);
     expect(config.get('a_key', 'ERR')).toBe('a_config_value');
 
-    let another = client.getLayer(layerConfigWithoutExperimentKey);
+    let another = client.getLayer(user, layerConfigWithoutExperimentKey);
     expect(another.get('a_key', 'ERR')).toBe('another_layer_default_value');
   });
 });

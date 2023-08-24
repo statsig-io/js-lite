@@ -7,6 +7,7 @@ import { EvaluationReason } from '../EvaluationMetadata';
 import * as TestData from './other_config_spec.json';
 
 describe('Verify behavior of StatsigClient outside of browser environment', () => {
+  const user = { email: 'tore@statsig.com' };
   test('Client ignores window undefined if specified in options', async () => {
     expect.assertions(8);
 
@@ -28,7 +29,6 @@ describe('Verify behavior of StatsigClient outside of browser environment', () =
 
     const client = new StatsigClient(
       'client-xyz',
-      { email: 'tore@statsig.com' },
       { ignoreWindowUndefined: true },
     );
 
@@ -38,12 +38,12 @@ describe('Verify behavior of StatsigClient outside of browser environment', () =
     expect(client._logger._flushInterval).not.toBeNull();
 
     // initialized from network (fetch mock)
-    expect(client.checkGate('test_gate')).toBe(false);
-    expect(client.checkGate('i_dont_exist')).toBe(false);
-    expect(client.checkGate('always_on_gate')).toBe(true);
-    expect(client.checkGate('on_for_statsig_email')).toBe(true);
-    expect(client.getConfig('test_config').get('number', 10)).toEqual(7);
-    expect(client.getConfig('test_config')._evaluationDetails).toEqual({
+    expect(client.checkGate(user, 'test_gate')).toBe(false);
+    expect(client.checkGate(user, 'i_dont_exist')).toBe(false);
+    expect(client.checkGate(user, 'always_on_gate')).toBe(true);
+    expect(client.checkGate(user, 'on_for_statsig_email')).toBe(true);
+    expect(client.getConfig(user, 'test_config').get('number', 10)).toEqual(7);
+    expect(client.getConfig(user, 'test_config')._evaluationDetails).toEqual({
       reason: EvaluationReason.Network,
       time: expect.any(Number),
     });

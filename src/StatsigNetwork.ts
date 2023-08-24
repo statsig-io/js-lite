@@ -1,7 +1,6 @@
 import ErrorBoundary from './ErrorBoundary';
 import Identity from './StatsigIdentity';
 import StatsigSDKOptions from './StatsigSDKOptions';
-import { StatsigUser } from './StatsigUser';
 
 export enum StatsigEndpoint {
   DownloadConfigSpecs = 'download_config_specs',
@@ -59,20 +58,11 @@ export default class StatsigNetwork {
   }
 
   public fetchValues(
-    user: StatsigUser | null,
-    sinceTime: number | null,
     timeout: number,
   ): PromiseWithTimeout<Record<string, any>> {
-    const input = {
-      user,
-      statsigMetadata: this._identity._statsigMetadata,
-      sinceTime: sinceTime ?? undefined,
-      hash: 'djb2',
-    };
-
     return this._postWithTimeout(
       StatsigEndpoint.DownloadConfigSpecs,
-      input,
+      null,
       timeout, // timeout for early returns
       3, // retries
     );
@@ -98,7 +88,7 @@ export default class StatsigNetwork {
 
   public async postToEndpoint(
     endpointName: StatsigEndpoint,
-    body: object,
+    body: object | null,
     retries: number = 0,
     backoff: number = 1000,
     useKeepalive: boolean = false,
@@ -134,13 +124,12 @@ export default class StatsigNetwork {
     } else {
       this.leakyBucket[url] = counter + 1;
     }
-    let postBody = JSON.stringify(body);
 
     const statsigMetadata = this._identity._statsigMetadata;
 
     const params: RequestInit = {
       method: 'POST',
-      body: postBody,
+      body: body === null ? null : JSON.stringify(body),
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
         'STATSIG-API-KEY': this._identity._sdkKey,
@@ -210,7 +199,7 @@ export default class StatsigNetwork {
 
   private _postWithTimeout<T>(
     endpointName: StatsigEndpoint,
-    body: object,
+    body: object | null,
     timeout: number = 0,
     retries: number = 0,
     backoff: number = 1000,
@@ -318,7 +307,7 @@ export default class StatsigNetwork {
 
   private async _getErrorData(
     endpointName: StatsigEndpoint,
-    body: object,
+    body: object | null,
     retries: number,
     backoff: number,
     res: NetworkResponse,
@@ -340,7 +329,7 @@ export default class StatsigNetwork {
         },
         requestInfo: {
           endpointName: endpointName,
-          bodySnippet: JSON.stringify(body).slice(0, 500),
+          bodySnippet: body ? JSON.stringify(body).slice(0, 500) : null,
           retries: retries,
           backoff: backoff,
         },

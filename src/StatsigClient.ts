@@ -36,7 +36,6 @@ export default class StatsigClient {
 
   public constructor(
     sdkKey: string,
-    user?: StatsigUser | null,
     options?: StatsigOptions | null,
   ) {
     if (
@@ -54,7 +53,6 @@ export default class StatsigClient {
     StatsigLocalStorage.disabled = this._options.disableLocalStorage;
     this._identity = new StatsigIdentity(
       sdkKey,
-      this._normalizeUser(user ?? null),
       this._options.overrideStableID,
     );
     this._network = new StatsigNetwork(
@@ -99,9 +97,7 @@ export default class StatsigClient {
           return Promise.resolve();
         }
 
-        const user = this._identity._user;
         this._pendingInitPromise = this._fetchAndSaveValues(
-          user,
           this._options.initTimeoutMs,
         )
           .then(() => {
@@ -154,20 +150,27 @@ export default class StatsigClient {
    * @returns {boolean} - value of a gate for the user. Gates are "off" (return false) by default
    * @throws Error if initialize() is not called first, or gateName is not a string
    */
-  public checkGate(gateName: string): boolean {
-    return this._checkGateImpl(gateName, 'checkGate');
+  public checkGate(user: StatsigUser | null, gateName: string): boolean {
+    return this._checkGateImpl(user, gateName, 'checkGate');
   }
 
-  public checkGateWithExposureLoggingDisabled(gateName: string): boolean {
+  public checkGateWithExposureLoggingDisabled(
+    user: StatsigUser | null,
+    gateName: string,
+  ): boolean {
     return this._checkGateImpl(
+      user, 
       gateName,
       'checkGateWithExposureLoggingDisabled',
     );
   }
 
-  public logGateExposure(gateName: string) {
+  public logGateExposure(
+    user: StatsigUser | null,
+    gateName: string,
+  ) {
     this._errorBoundary._swallow('logGateExposure', () => {
-      this._logGateExposureImpl(gateName);
+      this._logGateExposureImpl(user, gateName);
     });
   }
 
@@ -177,55 +180,62 @@ export default class StatsigClient {
    * @returns {DynamicConfig} - value of a config for the user
    * @throws Error if initialize() is not called first, or configName is not a string
    */
-  public getConfig(configName: string): DynamicConfig {
-    return this._getConfigImpl(configName, 'getConfig');
+  public getConfig(
+    user: StatsigUser | null,
+    configName: string,
+  ): DynamicConfig {
+    return this._getConfigImpl(user, configName, 'getConfig');
   }
 
   public getConfigWithExposureLoggingDisabled(
+    user: StatsigUser | null,
     configName: string,
   ): DynamicConfig {
     return this._getConfigImpl(
+      user, 
       configName,
       'getConfigWithExposureLoggingDisabled',
     );
   }
 
-  public logConfigExposure(configName: string) {
+  public logConfigExposure(user: StatsigUser | null, configName: string) {
     this._errorBoundary._swallow('logConfigExposure', () => {
-      this._logConfigExposureImpl(configName);
+      this._logConfigExposureImpl(user, configName);
     });
   }
 
-  public getExperiment(experimentName: string): DynamicConfig {
-    return this.getConfig(experimentName);
+  public getExperiment(user: StatsigUser | null, experimentName: string): DynamicConfig {
+    return this.getConfig(user, experimentName);
   }
 
   public getExperimentWithExposureLoggingDisabled(
+    user: StatsigUser | null,
     experimentName: string,
   ): DynamicConfig {
-    return this.getConfigWithExposureLoggingDisabled(experimentName);
+    return this.getConfigWithExposureLoggingDisabled(user, experimentName);
   }
 
-  public logExperimentExposure(experimentName: string) {
-    this.logConfigExposure(experimentName);
+  public logExperimentExposure(user: StatsigUser | null, experimentName: string) {
+    this.logConfigExposure(user, experimentName);
   }
 
-  public getLayer(layerName: string): Layer {
-    return this._getLayerImpl(layerName, 'getLayer');
+  public getLayer(user: StatsigUser | null, layerName: string): Layer {
+    return this._getLayerImpl(user, layerName, 'getLayer');
   }
 
-  public getLayerWithExposureLoggingDisabled(layerName: string): Layer {
-    return this._getLayerImpl(layerName, 'getLayerWithExposureLoggingDisabled');
+  public getLayerWithExposureLoggingDisabled(user: StatsigUser | null, layerName: string): Layer {
+    return this._getLayerImpl(user, layerName, 'getLayerWithExposureLoggingDisabled');
   }
 
-  public logLayerParameterExposure(layerName: string, parameterName: string) {
+  public logLayerParameterExposure(user: StatsigUser | null, layerName: string, parameterName: string) {
     this._errorBoundary._swallow('logLayerParameterExposure', () => {
-      const layer = this._getLayerFromStore(null, layerName);
+      const layer = this._getLayerFromStore(user, null, layerName);
       this._logLayerParameterExposureForLayer(layer, parameterName, true);
     });
   }
 
   public logEvent(
+    user: StatsigUser | null,
     eventName: string,
     value: string | number | null = null,
     metadata: Record<string, string> | null = null,
@@ -241,7 +251,7 @@ export default class StatsigClient {
       }
       const event = makeLogEvent(
         eventName,
-        this._identity._user,
+        user,
         this._identity._statsigMetadata,
         value,
         metadata,
@@ -316,42 +326,23 @@ export default class StatsigClient {
   }
 
   private async _fetchAndSaveValues(
-    user: StatsigUser | null,
     timeout: number = this._options.initTimeoutMs,
   ): Promise<void> {
-    let sinceTime: number | null = null;
-    sinceTime = this._store.getLastUpdateTime(user);
-
-    return this._network
-      .fetchValues(user, sinceTime, timeout)
-      .eventually((json) => {
-        if (json?.has_updates) {
-          this._store.save(user, json);
-        }
-      })
-      .then(async (json: Record<string, any>) => {
-        return this._errorBoundary._swallow('fetchAndSaveValues', async () => {
-          if (json?.has_updates) {
-            await this._store.save(user, json);
-          } else if (json?.is_no_content) {
-            this._store.setEvaluationReason(
-              EvaluationReason.NetworkNotModified,
-            );
-          }
-        });
-      });
+    const values = await this._network.fetchValues(timeout);
+    this._store.save(values);
   }
 
   private _checkGateImpl(
+    user: StatsigUser | null,
     gateName: string,
     callsite: 'checkGate' | 'checkGateWithExposureLoggingDisabled',
   ) {
     return this._errorBoundary._capture(
       callsite,
       () => {
-        const result = this._getGateFromStore(gateName);
+        const result = this._getGateFromStore(user, gateName);
         if (callsite === 'checkGate') {
-          this._logGateExposureImpl(gateName, result);
+          this._logGateExposureImpl(user, gateName, result);
         }
         return result.value === true;
       },
@@ -359,25 +350,26 @@ export default class StatsigClient {
     );
   }
 
-  private _getGateFromStore(gateName: string): ConfigEvaluation {
+  private _getGateFromStore(user: StatsigUser | null, gateName: string): ConfigEvaluation {
     this._ensureStoreLoaded();
     if (typeof gateName !== 'string' || gateName.length === 0) {
       throw new StatsigInvalidArgumentError(
         'Must pass a valid string as the gateName.',
       );
     }
-    return this._store.checkGate(gateName);
+    return this._store.checkGate(user, gateName);
   }
 
   private _logGateExposureImpl(
+    user: StatsigUser | null,
     gateName: string,
     fetchResult?: ConfigEvaluation,
   ) {
     const isManualExposure = !fetchResult;
-    const result = fetchResult ?? this._getGateFromStore(gateName);
+    const result = fetchResult ?? this._getGateFromStore(user, gateName);
 
     this._logger.logGateExposure(
-      this._identity._user,
+      user,
       gateName,
       result.value,
       result.rule_id,
@@ -388,15 +380,16 @@ export default class StatsigClient {
   }
 
   private _getConfigImpl(
+    user: StatsigUser | null,
     configName: string,
     callsite: 'getConfig' | 'getConfigWithExposureLoggingDisabled',
   ): DynamicConfig {
     return this._errorBoundary._capture(
       callsite,
       () => {
-        const result = this._getConfigFromStore(configName);
+        const result = this._getConfigFromStore(user, configName);
         if (callsite === 'getConfig') {
-          this._logConfigExposureImpl(configName, result);
+          this._logConfigExposureImpl(user, configName, result);
         }
         return result;
       },
@@ -404,14 +397,14 @@ export default class StatsigClient {
     );
   }
 
-  private _getConfigFromStore(configName: string): DynamicConfig {
+  private _getConfigFromStore(user: StatsigUser | null, configName: string): DynamicConfig {
     this._ensureStoreLoaded();
     if (typeof configName !== 'string' || configName.length === 0) {
       throw new StatsigInvalidArgumentError(
         'Must pass a valid string as the configName.',
       );
     }
-    const evaluation = this._store.getConfig(configName);
+    const evaluation = this._store.getConfig(user, configName);
     return new DynamicConfig(
       configName,
       evaluation.json_value,
@@ -419,16 +412,16 @@ export default class StatsigClient {
       evaluation.evaluation_details,
       evaluation.secondary_exposures,
       undefined,
-      this._makeOnConfigDefaultValueFallback(this._identity._user),
+      this._makeOnConfigDefaultValueFallback(user),
     );
   }
 
-  private _logConfigExposureImpl(configName: string, config?: DynamicConfig) {
+  private _logConfigExposureImpl(user: StatsigUser | null, configName: string, config?: DynamicConfig) {
     const isManualExposure = !config;
-    const localConfig = config ?? this._getConfigFromStore(configName);
+    const localConfig = config ?? this._getConfigFromStore(user, configName);
 
     this._logger.logConfigExposure(
-      this._identity._user,
+      user,
       configName,
       localConfig._ruleID,
       localConfig._secondaryExposures,
@@ -461,6 +454,7 @@ export default class StatsigClient {
   }
 
   private _getLayerImpl(
+    user: StatsigUser | null,
     layerName: string,
     callsite: 'getLayer' | 'getLayerWithExposureLoggingDisabled',
   ) {
@@ -471,14 +465,15 @@ export default class StatsigClient {
           callsite === 'getLayer'
             ? this._logLayerParameterExposureForLayer
             : null;
-        return this._getLayerFromStore(logFunc, layerName);
+        return this._getLayerFromStore(user, logFunc, layerName);
       },
       () =>
-        Layer._create(layerName, {}, '', this._getEvaluationDetailsForError()),
+        Layer._create(user, layerName, {}, '', this._getEvaluationDetailsForError()),
     );
   }
 
   private _getLayerFromStore(
+    user: StatsigUser | null,
     logParameterFunction: LogParameterFunction | null,
     layerName: string,
   ): Layer {
@@ -489,7 +484,7 @@ export default class StatsigClient {
       );
     }
     // TODO @tore
-    return Layer._create(layerName, {}, '', { reason: EvaluationReason.Unrecognized, time: Date.now() });//this._store.getLayer(logParameterFunction, layerName);
+    return Layer._create(user, layerName, {}, '', { reason: EvaluationReason.Unrecognized, time: Date.now() });//this._store.getLayer(logParameterFunction, layerName);
   }
 
   private _logLayerParameterExposureForLayer = (
@@ -505,8 +500,9 @@ export default class StatsigClient {
       exposures = layer._secondaryExposures;
     }
 
+    
     this._logger.logLayerExposure(
-      this._identity._user,
+      layer._user,
       layer._name,
       layer._ruleID,
       exposures,

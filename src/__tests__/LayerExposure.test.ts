@@ -52,9 +52,9 @@ describe.skip('Layer Exposure Logging', () => {
       value: { an_int: 99 },
     };
 
-    await Statsig.initialize('client-key', null);
+    await Statsig.initialize('client-key');
 
-    let layer = Statsig.getLayer('layer') as unknown as Indexable;
+    let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
     layer.get('an_int', '');
     Statsig.shutdown();
 
@@ -67,7 +67,7 @@ describe.skip('Layer Exposure Logging', () => {
     it('does not log a non-existent key', async () => {
       await Statsig.initialize('client-key', null);
 
-      let layer = Statsig.getLayer('layer') as unknown as Indexable;
+      let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
       layer[method]('an_int', 0);
       Statsig.shutdown();
 
@@ -88,9 +88,9 @@ describe.skip('Layer Exposure Logging', () => {
         explicit_parameters: [],
       };
 
-      await Statsig.initialize('client-key', null);
+      await Statsig.initialize('client-key');
 
-      let layer = Statsig.getLayer('layer') as unknown as Indexable;
+      let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
       layer[method]('an_int', 0);
       Statsig.shutdown();
 
@@ -124,9 +124,9 @@ describe.skip('Layer Exposure Logging', () => {
         explicit_parameters: ['an_int'],
       };
 
-      await Statsig.initialize('client-key', null);
+      await Statsig.initialize('client-key');
 
-      let layer = Statsig.getLayer('layer') as unknown as Indexable;
+      let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
       layer[method]('an_int', 0);
       layer[method]('a_string', '');
       Statsig.shutdown();
@@ -179,7 +179,7 @@ describe.skip('Layer Exposure Logging', () => {
 
       await Statsig.initialize('client-key', null);
 
-      let layer = Statsig.getLayer('layer') as unknown as Indexable;
+      let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
       layer[method]('a_bool', false);
       layer[method]('an_int', 0);
       layer[method]('a_double', 0.0);
@@ -217,7 +217,7 @@ describe.skip('Layer Exposure Logging', () => {
 
       await Statsig.initialize('client-key', null);
 
-      let layer = Statsig.getLayer('layer') as unknown as Indexable;
+      let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
       Statsig.shutdown();
 
       layer[method]('a_bool', false);
@@ -232,12 +232,12 @@ describe.skip('Layer Exposure Logging', () => {
         value: { an_int: 99 },
       };
 
-      await Statsig.initialize('client-key', {
+      await Statsig.initialize('client-key');
+
+      let layer = Statsig.getLayer({
         userID: 'dloomb',
         email: 'dan@loomb.io',
-      });
-
-      let layer = Statsig.getLayer('layer') as unknown as Indexable;
+      }, 'layer') as unknown as Indexable;
       layer[method]('an_int', 0);
       Statsig.shutdown();
 

@@ -17,10 +17,9 @@ export default class Statsig {
 
   public static async initialize(
     sdkKey: string,
-    user?: StatsigUser | null,
     options?: StatsigOptions | null,
   ): Promise<void> {
-    const inst = Statsig.instance ?? new StatsigClient(sdkKey, user, options);
+    const inst = Statsig.instance ?? new StatsigClient(sdkKey, options);
 
     if (!Statsig.instance) {
       Statsig.instance = inst;
@@ -31,79 +30,69 @@ export default class Statsig {
 
   // Gate
 
-  public static checkGate(gateName: string): boolean {
-    return Statsig._getClientX().checkGate(gateName);
-  }
-
-  public static checkGateWithExposureLoggingDisabled(
+  public static checkGate(
+    user: StatsigUser | null,
     gateName: string,
   ): boolean {
-    return Statsig._getClientX().checkGateWithExposureLoggingDisabled(gateName);
+    return Statsig._getClientX().checkGate(user, gateName);
   }
 
-  public static manuallyLogGateExposure(gateName: string) {
-    Statsig._getClientX().logGateExposure(gateName);
+  public static manuallyLogGateExposure(user: StatsigUser | null, gateName: string) {
+    Statsig._getClientX().logGateExposure(user, gateName);
   }
 
   // Config
-
-  public static getConfig(configName: string): DynamicConfig {
-    return Statsig._getClientX().getConfig(configName);
+  public static getConfig(user: StatsigUser | null, configName: string): DynamicConfig {
+    return Statsig._getClientX().getConfig(user, configName);
   }
 
-  public static getConfigWithExposureLoggingDisabled(
-    configName: string,
-  ): DynamicConfig {
-    return Statsig._getClientX().getConfigWithExposureLoggingDisabled(
-      configName,
-    );
-  }
-
-  public static manuallyLogConfigExposure(configName: string) {
-    Statsig._getClientX().logConfigExposure(configName);
+  public static manuallyLogConfigExposure(user: StatsigUser | null, configName: string) {
+    Statsig._getClientX().logConfigExposure(user, configName);
   }
 
   // Experiment
-
-  public static getExperiment(experimentName: string): DynamicConfig {
-    return Statsig._getClientX().getExperiment(experimentName);
+  public static getExperiment(user: StatsigUser | null, experimentName: string): DynamicConfig {
+    return Statsig._getClientX().getExperiment(user, experimentName);
   }
 
   public static getExperimentWithExposureLoggingDisabled(
+    user: StatsigUser | null,
     experimentName: string,
   ): DynamicConfig {
     return Statsig._getClientX().getExperimentWithExposureLoggingDisabled(
+      user,
       experimentName,
     );
   }
 
-  public static manuallyLogExperimentExposure(configName: string) {
-    Statsig._getClientX().logExperimentExposure(configName);
+  public static manuallyLogExperimentExposure(user: StatsigUser | null,configName: string) {
+    Statsig._getClientX().logExperimentExposure(user, configName);
   }
 
   // Layer
-
-  public static getLayer(layerName: string): Layer {
-    return Statsig._getClientX().getLayer(layerName);
+  public static getLayer(user: StatsigUser | null, layerName: string): Layer {
+    return Statsig._getClientX().getLayer(user, layerName);
   }
 
-  public static getLayerWithExposureLoggingDisabled(layerName: string): Layer {
-    return Statsig._getClientX().getLayerWithExposureLoggingDisabled(layerName);
+  public static getLayerWithExposureLoggingDisabled(user: StatsigUser | null, layerName: string): Layer {
+    return Statsig._getClientX().getLayerWithExposureLoggingDisabled(user, layerName);
   }
 
   public static manuallyLogLayerParameterExposure(
+    user: StatsigUser | null,
     layerName: string,
     parameterName: string,
   ) {
-    Statsig._getClientX().logLayerParameterExposure(layerName, parameterName);
+    Statsig._getClientX().logLayerParameterExposure(user, layerName, parameterName);
   }
 
   public static logEvent(
+    user: StatsigUser | null,
     eventName: string,
     value: string | number | null = null,
     metadata: Record<string, string> | null = null,
   ): void {
-    return Statsig._getClientX().logEvent(eventName, value, metadata);
+    return Statsig._getClientX().logEvent(user, eventName, value, metadata);
   }
 
   public static shutdown() {

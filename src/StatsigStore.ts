@@ -62,7 +62,6 @@ export default class StatsigStore {
   }
 
   public async save(
-    user: StatsigUser | null,
     jsonConfigs: Record<string, any>,
   ): Promise<void> {
     const featureGates = jsonConfigs.feature_gates as Array<Record<string, unknown>>;
@@ -79,34 +78,27 @@ export default class StatsigStore {
     }
   }
 
-  /**
-   * Persists the init values to storage, but DOES NOT update the state of the store.
-   */
-  public async saveWithoutUpdatingClientState(
-    user: StatsigUser | null,
-    jsonConfigs: Record<string, any>,
-  ): Promise<void> {
-    // TODO-HACK @tore
-  }
-
   public checkGate(
+    user: StatsigUser | null,
     gateName: string,
   ): ConfigEvaluation {
-    return this.evaluator.checkGate(this.identity.getCurrentUser(), gateName);
+    return this.evaluator.checkGate(user, gateName);
   }
 
   public getConfig(
+    user: StatsigUser | null,
     configName: string,
   ): ConfigEvaluation {
     // TODO-HACK @tore use evaluator
-    return this.evaluator.getConfig(this.identity.getCurrentUser(), configName);
+    return this.evaluator.getConfig(user, configName);
   }
 
   public getExperiment(
+    user: StatsigUser | null,
     expName: string,
   ): ConfigEvaluation {
     // TODO-HACK @tore use evaluator
-    return this.evaluator.getConfig(this.identity.getCurrentUser(), expName);
+    return this.evaluator.getConfig(user, expName);
   }
 
   // public getLayer(

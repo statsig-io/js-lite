@@ -53,7 +53,8 @@ describe('Verify behavior of StatsigLogger', () => {
 
   test('Test constructor', () => {
     expect.assertions(10);
-    const client = new StatsigClient(sdkKey, { userID: 'user_key' });
+    const user = { userID: 'user_key' };
+    const client = new StatsigClient(sdkKey);
     const logger = client._logger;
     const spyOnFlush = jest.spyOn(logger, 'flush');
     const spyOnLog = jest.spyOn(logger, 'log');
@@ -68,19 +69,20 @@ describe('Verify behavior of StatsigLogger', () => {
     const makeSimpleLogEvent = (name: string) =>
       makeLogEvent(name, null, client._identity._statsigMetadata, null, null);
 
+    // TODO @Tore update deduping since user object can differ
     return client.initializeAsync().then(async () => {
       logger.log(makeSimpleLogEvent('event'));
       logger.log(makeSimpleLogEvent('event'));
       logger.log(makeSimpleLogEvent('event'));
-      client.checkGate('test_gate');
-      client.checkGate('test_gate');
-      client.checkGate('test_gate');
+      client.checkGate(user, 'test_gate');
+      client.checkGate(user, 'test_gate');
+      client.checkGate(user, 'test_gate');
       logger.log(makeSimpleLogEvent('event'));
-      client.getExperiment('test_config');
-      client.getExperiment('test_config');
-      client.getExperiment('test_config');
+      client.getExperiment(user, 'test_config');
+      client.getExperiment(user, 'test_config');
+      client.getExperiment(user, 'test_config');
       expect(spyOnLog).toHaveBeenCalledTimes(6);
-      client.getExperiment('test_config');
+      client.getExperiment(user, 'test_config');
       for (var i = 0; i < 95; i++) {
         logger.log(makeSimpleLogEvent('event'));
       }
@@ -101,10 +103,10 @@ describe('Verify behavior of StatsigLogger', () => {
       const elevenminslater = Date.now() + 11 * 60 * 1000;
       jest.spyOn(global.Date, 'now').mockImplementation(() => elevenminslater);
 
-      client.checkGate('test_gate');
-      client.checkGate('test_gate');
-      client.getExperiment('test_config');
-      client.getExperiment('test_config');
+      client.checkGate(user, 'test_gate');
+      client.checkGate(user, 'test_gate');
+      client.getExperiment(user, 'test_config');
+      client.getExperiment(user, 'test_config');
       expect(spyOnLog).toHaveBeenCalledTimes(103);
     });
   });
@@ -113,7 +115,6 @@ describe('Verify behavior of StatsigLogger', () => {
     expect.assertions(1);
     const client = new StatsigClient(
       sdkKey,
-      { userID: 'user_key' },
       { localMode: true },
     );
 
@@ -127,7 +128,7 @@ describe('Verify behavior of StatsigLogger', () => {
 
     beforeEach(() => {
       jest.useFakeTimers();
-      const client = new StatsigClient(sdkKey, { userID: 'user_key' });
+      const client = new StatsigClient(sdkKey);
       logger = client._logger;
       spy = jest.spyOn(logger, 'flush');
     });

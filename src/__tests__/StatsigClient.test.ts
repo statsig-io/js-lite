@@ -64,16 +64,16 @@ describe('Verify behavior of StatsigClient', () => {
     expect.assertions(4);
     const client = new StatsigClient(sdkKey);
     expect(() => {
-      client.checkGate('gate');
+      client.checkGate({}, 'gate');
     }).not.toThrow();
     expect(() => {
-      client.getConfig('config');
+      client.getConfig({}, 'config');
     }).not.toThrow();
     expect(() => {
-      client.getExperiment('experiment');
+      client.getExperiment({}, 'experiment');
     }).not.toThrow();
     expect(() => {
-      client.logEvent('event');
+      client.logEvent({}, 'event');
     }).not.toThrow();
   });
 
@@ -81,7 +81,6 @@ describe('Verify behavior of StatsigClient', () => {
     expect.assertions(2);
     const statsig = new StatsigClient(
       sdkKey,
-      { userID: '123' },
       {
         api: 'https://statsig.jkw.com/v1',
       },
@@ -95,34 +94,27 @@ describe('Verify behavior of StatsigClient', () => {
     );
   });
 
-  test('that overrideStableID works for local storage and gets set correctly in request', async () => {
-    expect.assertions(7);
-
+  test('that overrideStableID works for local storage', async () => {
+    expect.assertions(4);
+    jest.useFakeTimers();
     const statsig = new StatsigClient(sdkKey);
     await statsig.initializeAsync();
-    let stableID = parsedRequestBody!['statsigMetadata']['stableID'];
-    expect(stableID).toBeTruthy();
-    expect(statsig.getStableID()).toEqual(stableID);
+    expect(statsig.getStableID()).not.toBeNull();
 
-    const statsig2 = new StatsigClient(sdkKey, null, {
+    const statsig2 = new StatsigClient(sdkKey, {
       overrideStableID: '123',
     });
-    await statsig2.initializeAsync();
-    expect(parsedRequestBody!['statsigMetadata']['stableID']).not.toEqual(
-      stableID,
-    );
-    expect(parsedRequestBody!['statsigMetadata']['stableID']).toEqual('123');
     expect(statsig2.getStableID()).toEqual('123');
 
-    const statsig3 = new StatsigClient(sdkKey, null, {
+    const statsig3 = new StatsigClient(sdkKey, {
       overrideStableID: '456',
     });
     await statsig3.initializeAsync();
-    expect(parsedRequestBody!['statsigMetadata']['stableID']).toEqual('456');
+    expect(statsig3.getStableID()).toEqual('456');
 
-    const statsig4 = new StatsigClient(sdkKey, null);
+    const statsig4 = new StatsigClient(sdkKey);
     await statsig4.initializeAsync();
-    expect(parsedRequestBody!['statsigMetadata']['stableID']).toEqual('456');
+    expect(statsig4.getStableID()).toEqual('456');
   });
 
   test('that localMode supports a dummy statsig', async () => {
@@ -130,7 +122,6 @@ describe('Verify behavior of StatsigClient', () => {
     parsedRequestBody = null;
     const statsig = new StatsigClient(
       sdkKey,
-      {},
       {
         localMode: true,
       },
@@ -138,7 +129,7 @@ describe('Verify behavior of StatsigClient', () => {
     await statsig.initializeAsync();
     expect(parsedRequestBody).toBeNull(); // never issued the request
 
-    expect(statsig.checkGate('test_gate')).toEqual(false);
-    expect(statsig.getConfig('test_config').getValue()).toEqual({});
+    expect(statsig.checkGate({}, 'test_gate')).toEqual(false);
+    expect(statsig.getConfig({}, 'test_config').getValue()).toEqual({});
   });
 });

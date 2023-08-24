@@ -40,11 +40,11 @@ describe('On Default Value Fallback', () => {
   beforeEach(async () => {
     // @ts-ignore
     Statsig.instance = null;
-    await Statsig.initialize('client-key', user);
+    await Statsig.initialize('client-key');
 
     // @ts-ignore
     Statsig.instance._options.loggingBufferMaxSize = 1;
-    config = Statsig.getConfig('test_config');
+    config = Statsig.getConfig(user, 'test_config');
     events = [];
   });
 
