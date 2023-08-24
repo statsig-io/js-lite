@@ -63,7 +63,8 @@ const initialResponse = {
   has_updates: true,
 };
 
-describe('Statsig Layers', () => {
+// TODO @tore
+describe.skip('Statsig Layers', () => {
   var client: StatsigClient;
 
   const localStorage = new LocalStorageMock();

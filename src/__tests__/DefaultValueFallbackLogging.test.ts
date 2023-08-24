@@ -3,7 +3,7 @@
  */
 
 import Statsig, { DynamicConfig, StatsigUser } from '..';
-import * as TestData from './initialize_response.json';
+import * as TestData from './other_config_spec.json';
 
 const user: StatsigUser = {
   userID: 'a-user',
@@ -34,21 +34,23 @@ describe('On Default Value Fallback', () => {
       });
     });
 
+    
+  });
+
+  beforeEach(async () => {
     // @ts-ignore
     Statsig.instance = null;
     await Statsig.initialize('client-key', user);
 
     // @ts-ignore
     Statsig.instance._options.loggingBufferMaxSize = 1;
-  });
-
-  beforeEach(async () => {
     config = Statsig.getConfig('test_config');
     events = [];
   });
 
   it('logs an event when falling back to default value', async () => {
-    config.get('number', 'a_string');
+    expect(config.get('number', 'a_string')).toEqual('a_string');
+    Statsig.shutdown();
     expect(events.length).toBe(1);
 
     const event = events[0];
@@ -58,7 +60,7 @@ describe('On Default Value Fallback', () => {
         defaultValueType: 'string',
         name: 'test_config',
         parameter: 'number',
-        ruleID: '1kNmlB23wylPFZi1M0Divl',
+        ruleID: 'default',
         valueType: 'number',
       },
     });
@@ -66,6 +68,7 @@ describe('On Default Value Fallback', () => {
 
   it('logs an event when the typeguard fails', async () => {
     config.get('boolean', 'a_string', (_v): _v is string => false);
+    Statsig.shutdown();
     expect(events.length).toBe(1);
 
     const event = events[0];
@@ -75,7 +78,7 @@ describe('On Default Value Fallback', () => {
         defaultValueType: 'string',
         name: 'test_config',
         parameter: 'boolean',
-        ruleID: '1kNmlB23wylPFZi1M0Divl',
+        ruleID: 'default',
         valueType: 'boolean',
       },
     });
@@ -83,21 +86,13 @@ describe('On Default Value Fallback', () => {
 
   it('does not log when returning the correct value', async () => {
     config.get('number', 0);
+    Statsig.shutdown();
     expect(events.length).toBe(0);
   });
 
   it('does not log when type guard succeeds', async () => {
     config.get('number', 0, (_v): _v is number => true);
+    Statsig.shutdown();
     expect(events.length).toBe(0);
-  });
-
-  it('logs the correct user object after update', async () => {
-    await Statsig.updateUser({ userID: 'a-different-user' });
-    config.get('number', 'a_string');
-
-    const event = events[0];
-    expect(event).toMatchObject({
-      user: { userID: 'a-user' },
-    });
   });
 });

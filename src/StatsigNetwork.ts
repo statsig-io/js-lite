@@ -4,7 +4,7 @@ import StatsigSDKOptions from './StatsigSDKOptions';
 import { StatsigUser } from './StatsigUser';
 
 export enum StatsigEndpoint {
-  Initialize = 'initialize',
+  DownloadConfigSpecs = 'download_config_specs',
   Rgstr = 'rgstr',
   LogEventBeacon = 'log_event_beacon',
 }
@@ -71,7 +71,7 @@ export default class StatsigNetwork {
     };
 
     return this._postWithTimeout(
-      StatsigEndpoint.Initialize,
+      StatsigEndpoint.DownloadConfigSpecs,
       input,
       timeout, // timeout for early returns
       3, // retries
@@ -116,7 +116,7 @@ export default class StatsigNetwork {
       return Promise.reject('window is not defined');
     }
 
-    const api = [StatsigEndpoint.Initialize].includes(endpointName)
+    const api = [StatsigEndpoint.DownloadConfigSpecs].includes(endpointName)
       ? this._options.api
       : this._options.eventLoggingApi;
     const url = api + endpointName;
@@ -204,7 +204,7 @@ export default class StatsigNetwork {
     if (!this._options.disableNetworkKeepalive) {
       try {
         this.canUseKeepalive = 'keepalive' in new Request('');
-      } catch (_e) {}
+      } catch (_e) { }
     }
   }
 

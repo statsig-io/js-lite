@@ -1,4 +1,4 @@
-import { EvaluationDetails } from './StatsigStore';
+import { EvaluationDetails } from './EvaluationMetadata';
 
 export type OnDefaultValueFallback = (
   config: DynamicConfig,
@@ -41,9 +41,11 @@ export default class DynamicConfig {
     defaultValue: T,
     typeGuard?: (value: unknown) => value is T,
   ): T {
+    console.log('get', key, defaultValue, typeGuard, this._onDefaultValueFallback);
     const val = this.getValue(key, defaultValue);
 
     if (val == null) {
+      console.log('null value,return defult');
       return defaultValue;
     }
 
@@ -54,17 +56,19 @@ export default class DynamicConfig {
 
     if (typeGuard) {
       if (typeGuard(val)) {
+        console.log('typeguard success');
         return val;
       }
-
+      console.log('typeguard fail');
       this._onDefaultValueFallback?.(this, key, expectedType, actualType);
       return defaultValue;
     }
 
     if (defaultValue == null || expectedType === actualType) {
+      console.log('match ');
       return val as unknown as T;
     }
-
+    console.log('fallback ');
     this._onDefaultValueFallback?.(this, key, expectedType, actualType);
     return defaultValue;
   }

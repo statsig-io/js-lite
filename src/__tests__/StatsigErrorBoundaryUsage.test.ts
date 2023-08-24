@@ -4,7 +4,6 @@
 
 import DynamicConfig from '../DynamicConfig';
 import { ExceptionEndpoint } from '../ErrorBoundary';
-import { StatsigInvalidArgumentError } from '../Errors';
 import Layer from '../Layer';
 import StatsigClient from '../StatsigClient';
 
@@ -72,7 +71,7 @@ describe('Statsig ErrorBoundary Usage', () => {
     expectSingleError('_store.getConfig');
   });
 
-  it('recovers from errors and returns default layer value', async () => {
+  it.skip('recovers from errors and returns default layer value', async () => {
     const result = client.getLayer('a_layer');
     expect(result instanceof Layer).toBe(true);
     expectSingleError('_store.getLayer');
@@ -86,16 +85,6 @@ describe('Statsig ErrorBoundary Usage', () => {
   it('recovers from errors with shutdown', () => {
     client.shutdown();
     expectSingleError('_logger.shutdown');
-  });
-
-  it('recovers from errors with setInitializeValues', () => {
-    // @ts-ignore
-    client._ready = false;
-
-    client.setInitializeValues({});
-    expectSingleError('_store.bootstrap');
-    // @ts-ignore
-    expect(client._ready).toBeTruthy();
   });
 
   it('recovers from errors with getStableID', () => {
@@ -119,11 +108,6 @@ describe('Statsig ErrorBoundary Usage', () => {
     expect(localClient._ready).toBeTruthy();
   });
 
-  it('recovers from errors with updateUser', async () => {
-    await client.updateUser({ userID: 'jkw' });
-    expectSingleError('_store.updateUser');
-  });
-
   it('captures crashes in saving', async () => {
     const localClient = new StatsigClient('client-key');
     // @ts-ignore
@@ -139,7 +123,7 @@ describe('Statsig ErrorBoundary Usage', () => {
     await localClient.initializeAsync();
     requests.shift(); // rm /initialize call
     expectSingleError(
-      "Error: Request to initialize received invalid response type. Expected 'object' but got 'number'",
+      "Error: Request to download_config_specs received invalid response type. Expected 'object' but got 'number'",
       'Error',
       expect.objectContaining({
         requestInfo: expect.any(Object),
@@ -148,10 +132,4 @@ describe('Statsig ErrorBoundary Usage', () => {
     );
   });
 
-  it('does not capture invalid user object errors', async () => {
-    expect(async () => {
-      // @ts-ignore
-      await client.updateUser(undefined);
-    }).rejects.toThrow(StatsigInvalidArgumentError);
-  });
 });

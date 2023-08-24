@@ -3,13 +3,13 @@ import { StatsigUninitializedError } from './Errors';
 import Layer from './Layer';
 import StatsigClient from './StatsigClient';
 import { StatsigOptions } from './StatsigSDKOptions';
-import { EvaluationDetails, EvaluationReason } from './StatsigStore';
+import { EvaluationDetails, EvaluationReason } from './EvaluationMetadata';
 import { StatsigUser } from './StatsigUser';
 
 export { default as DynamicConfig } from './DynamicConfig';
 export { StatsigEnvironment, StatsigOptions } from './StatsigSDKOptions';
-export { EvaluationReason } from './StatsigStore';
-export type { EvaluationDetails } from './StatsigStore';
+export { EvaluationReason } from './EvaluationMetadata';
+export type { EvaluationDetails } from './EvaluationMetadata';
 export { StatsigUser } from './StatsigUser';
 
 export default class Statsig {
@@ -27,12 +27,6 @@ export default class Statsig {
     }
 
     return inst.initializeAsync();
-  }
-
-  public static setInitializeValues(
-    initializeValues: Record<string, unknown>,
-  ): void {
-    Statsig._getClientX().setInitializeValues(initializeValues);
   }
 
   // Gate
@@ -110,17 +104,6 @@ export default class Statsig {
     metadata: Record<string, string> | null = null,
   ): void {
     return Statsig._getClientX().logEvent(eventName, value, metadata);
-  }
-
-  public static updateUser(user: StatsigUser | null): Promise<boolean> {
-    return Statsig._getClientX().updateUser(user);
-  }
-
-  public static updateUserWithValues(
-    user: StatsigUser | null,
-    values: Record<string, unknown>,
-  ): boolean {
-    return Statsig._getClientX().updateUserWithValues(user, values);
   }
 
   public static shutdown() {

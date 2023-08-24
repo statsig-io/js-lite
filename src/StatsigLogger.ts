@@ -4,7 +4,7 @@ import makeLogEvent from './LogEvent';
 import Identity from './StatsigIdentity';
 import StatsigNetwork, { StatsigEndpoint } from './StatsigNetwork';
 import StatsigSDKOptions from './StatsigSDKOptions';
-import { EvaluationDetails } from './StatsigStore';
+import { EvaluationDetails } from './EvaluationMetadata';
 import { StatsigUser } from './StatsigUser';
 import { STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY } from './utils/Constants';
 import Diagnostics from './utils/Diagnostics';
@@ -78,7 +78,7 @@ export default class StatsigLogger {
           event.statsigMetadata.currentPage = parts[0];
         }
       }
-    } catch (_e) {}
+    } catch (_e) { }
 
     this._queue.push(event);
 
@@ -217,6 +217,7 @@ export default class StatsigLogger {
     message: string,
     metadata: object,
   ) => {
+    console.log("logConfigDefaultValueFallback", message, metadata);
     const defaultValueEvent = makeLogEvent(
       DEFAULT_VALUE_WARNING,
       user,
@@ -473,6 +474,6 @@ export default class StatsigLogger {
       time: Date.now(),
     });
 
-    this._saveFailedRequests().then(() => {});
+    this._saveFailedRequests().then(() => { });
   }
 }

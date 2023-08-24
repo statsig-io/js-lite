@@ -1,4 +1,4 @@
-import { EvaluationDetails } from './StatsigStore';
+import { EvaluationDetails } from './EvaluationMetadata';
 
 export type LogParameterFunction = (
   layer: Layer,

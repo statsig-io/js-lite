@@ -4,10 +4,9 @@
 
 import Statsig from '..';
 import makeLogEvent from '../LogEvent';
-import StatsigClient from '../StatsigClient';
-import { EvaluationReason } from '../StatsigStore';
+import { EvaluationReason } from '../EvaluationMetadata';
 import { INTERNAL_STORE_KEY } from '../utils/Constants';
-import * as TestData from './basic_initialize_response.json';
+import * as TestData from './basic_config_spec.json';
 let statsig: typeof Statsig;
 
 export type StatsigInitializeResponse = {
@@ -25,17 +24,14 @@ describe('Verify behavior of top level index functions', () => {
     statsigMetadata: { sdkType: '', sdkVersion: '' },
   };
   let requestCount = 0;
-  let hasCustomID = false;
   // @ts-ignore
   global.fetch = jest.fn((url, params) => {
-    requestCount++;
     if (url.toString().includes('rgstr')) {
       postedLogs = JSON.parse(params?.body as string);
       return Promise.resolve({ ok: true });
     }
-    if (url.toString().includes('initialize')) {
-      let body = JSON.parse(params?.body as string);
-      hasCustomID = body.user?.customIDs?.['customID'] != null;
+    if (url.toString().includes('download_config_specs')) {
+      requestCount++;
       return Promise.resolve({
         ok: true,
         text: () => Promise.resolve(JSON.stringify(TestData)),
@@ -50,7 +46,6 @@ describe('Verify behavior of top level index functions', () => {
     statsig = require('../index').default;
     expect.hasAssertions();
     requestCount = 0;
-    hasCustomID = false;
     window.localStorage.removeItem(INTERNAL_STORE_KEY);
 
     // ensure Date.now() returns the same value in each test
@@ -135,7 +130,7 @@ describe('Verify behavior of top level index functions', () => {
   test('Verify checkGate() returns the correct value under correct circumstances', () => {
     expect.assertions(4);
     return statsig
-      .initialize('client-key', null, { disableCurrentPageLogging: true })
+      .initialize('client-key', {email: 'test@statsig.com'}, { disableCurrentPageLogging: true })
       .then(() => {
         // @ts-ignore
         const ready = statsig.instance._ready;
@@ -145,28 +140,17 @@ describe('Verify behavior of top level index functions', () => {
         const spy = jest.spyOn(statsig.instance._logger, 'log');
         let gateExposure = makeLogEvent(
           'statsig::gate_exposure',
-          null,
+          {email: 'test@statsig.com'},
           (statsig as any).instance._identity._statsigMetadata,
           null,
           {
             gate: 'test_gate',
             gateValue: String(true),
-            ruleID: 'ruleID123',
+            ruleID: '5NfZsHpOUSn3ts7koLusbK',
             reason: EvaluationReason.Network,
             time: Date.now(),
           },
-          [
-            {
-              gate: 'dependent_gate_1',
-              gateValue: 'true',
-              ruleID: 'rule_1',
-            },
-            {
-              gate: 'dependent_gate_2',
-              gateValue: 'false',
-              ruleID: 'default',
-            },
-          ],
+          [],
         );
 
         const gateValue = statsig.checkGate('test_gate');
@@ -176,34 +160,9 @@ describe('Verify behavior of top level index functions', () => {
       });
   });
 
-  test('Updating users before initialize throws', () => {
-    expect.assertions(1);
-    return expect(() => {
-      statsig.updateUser({ userID: 123 });
-    }).toThrowError('Call and wait for initialize() to finish first.');
-  });
-
-  test('Initialize, switch, sdk ready', () => {
-    return statsig.initialize('client-key', null).then(() => {
-      return statsig.updateUser({ userID: 123 }).then(() => {
-        // @ts-ignore
-        const ready = statsig.instance._ready;
-        expect(ready).toBe(true);
-      });
-    });
-  });
-
   test('Initialize rejects invalid SDK Key', () => {
     // @ts-ignore
     return expect(statsig.initialize()).rejects.toEqual(
-      new Error(
-        'Invalid key provided.  You must use a Client SDK Key from the Statsig console to initialize the sdk',
-      ),
-    );
-  });
-
-  test('Initialize rejects Secret Key', () => {
-    return expect(statsig.initialize('secret-key', null)).rejects.toEqual(
       new Error(
         'Invalid key provided.  You must use a Client SDK Key from the Statsig console to initialize the sdk',
       ),
@@ -230,7 +189,7 @@ describe('Verify behavior of top level index functions', () => {
           null,
           {
             config: 'test_config',
-            ruleID: 'ruleID',
+            ruleID: 'default',
             reason: EvaluationReason.Network,
             time: Date.now(),
           },
@@ -257,60 +216,6 @@ describe('Verify behavior of top level index functions', () => {
       });
   });
 
-  test('initializing and updating user without awaiting', async () => {
-    await statsig.initialize(
-      'client-key',
-      { userID: 'pass' },
-      {
-        disableCurrentPageLogging: true,
-      },
-    );
-    // gate should be true for user ID 'pass'
-    expect(statsig.checkGate('test_gate')).toBe(true);
-
-    // update user to be 'fail', but don't wait for the request to return
-    let p = statsig.updateUser({ userID: 'fail' });
-    // should return the default value, false, instead of the previous user's value, until promise is done
-    expect(statsig.checkGate('test_gate')).toBe(false);
-    await p;
-    expect(statsig.checkGate('test_gate')).toBe(true);
-
-    // switch back to the previous user 'pass', and we should use the cached value, true
-    statsig.updateUser({ userID: 'pass' });
-    expect(statsig.checkGate('test_gate')).toBe(true);
-
-    // switch back to 'fail' user again, and should immediately get the cached value, true
-    statsig.updateUser({ userID: 'fail' });
-    expect(statsig.checkGate('test_gate')).toBe(true);
-
-    // initializing and not awaiting should also use cached value
-    let client = new StatsigClient('client-key', { userID: 'pass' });
-    client.initializeAsync();
-    expect(client.checkGate('test_gate')).toBe(true);
-
-    // but not for a new user
-    let client2 = new StatsigClient('client-key', { userID: 'pass_2' });
-    client2.initializeAsync();
-    expect(client2.checkGate('test_gate')).toBe(false);
-  });
-
-  test('initializing and updating user without awaiting for no userID', async () => {
-    await statsig.initialize('client-key', null, {
-      disableCurrentPageLogging: true,
-    });
-    // gate should be true first
-    expect(statsig.checkGate('test_gate')).toBe(true);
-
-    // update user, but don't wait for the request to return
-    let p = statsig.updateUser({ userID: 'fail' });
-    // should return the default value, false
-    expect(statsig.checkGate('test_gate')).toBe(false);
-
-    // switch back to the previous user 'pass', and we should use the cached value, true
-    statsig.updateUser(null);
-    expect(statsig.checkGate('test_gate')).toBe(true);
-  });
-
   test('Verify getExperiment() behaves correctly when calling under correct conditions', () => {
     expect.assertions(4);
 
@@ -330,7 +235,7 @@ describe('Verify behavior of top level index functions', () => {
           null,
           {
             config: 'test_config',
-            ruleID: 'ruleID',
+            ruleID: 'default',
             reason: EvaluationReason.Network,
             time: Date.now(),
           },
@@ -377,6 +282,7 @@ describe('Verify behavior of top level index functions', () => {
     await statsig.initialize('client-key', {
       userID: '12345',
       country: 'US',
+      email: 'test@statsig.com',
       custom: { key: 'value' },
       privateAttributes: { private: 'value' },
     });
@@ -405,18 +311,16 @@ describe('Verify behavior of top level index functions', () => {
         metadata: {
           gate: 'test_gate',
           gateValue: 'true',
-          ruleID: 'ruleID123',
+          ruleID: '5NfZsHpOUSn3ts7koLusbK',
           reason: EvaluationReason.Network,
           time: expect.any(Number),
         },
-        secondaryExposures: [
-          { gate: 'dependent_gate_1', gateValue: 'true', ruleID: 'rule_1' },
-          { gate: 'dependent_gate_2', gateValue: 'false', ruleID: 'default' },
-        ],
+        secondaryExposures: [],
         user: {
           userID: '12345',
           country: 'US',
           custom: { key: 'value' },
+          email: "test@statsig.com",
         },
         statsigMetadata: expect.any(Object),
         time: expect.any(Number),
@@ -428,7 +332,7 @@ describe('Verify behavior of top level index functions', () => {
         eventName: 'statsig::config_exposure',
         metadata: {
           config: 'test_config',
-          ruleID: 'ruleID',
+          ruleID: 'default',
           reason: EvaluationReason.Network,
           time: expect.any(Number),
         },
@@ -437,6 +341,7 @@ describe('Verify behavior of top level index functions', () => {
           userID: '12345',
           country: 'US',
           custom: { key: 'value' },
+          email: "test@statsig.com",
         },
         statsigMetadata: expect.any(Object),
         time: expect.any(Number),
@@ -453,6 +358,7 @@ describe('Verify behavior of top level index functions', () => {
           userID: '12345',
           country: 'US',
           custom: { key: 'value' },
+          email: "test@statsig.com",
         },
         statsigMetadata: expect.any(Object),
         time: expect.any(Number),
@@ -479,32 +385,5 @@ describe('Verify behavior of top level index functions', () => {
       { overrideStableID: '666' },
     );
     expect(statsig.getStableID()).toEqual('666');
-  });
-
-  test('LocalMode with updateUser short circuits the network requests', async () => {
-    expect.assertions(2);
-
-    await statsig.initialize(
-      'client-key',
-      { userID: '123' },
-      { localMode: true },
-    );
-
-    // @ts-ignore
-    const spy = jest.spyOn(statsig.instance._network, 'fetchValues');
-    await expect(statsig.updateUser({ userID: '456' })).resolves.not.toThrow();
-    expect(spy).toHaveBeenCalledTimes(0);
-  });
-
-  test('customIDs is sent with user', async () => {
-    let client = new StatsigClient('client-key', { userID: '123' });
-    await client.initializeAsync();
-    expect(hasCustomID).toBeFalsy();
-    client = new StatsigClient('client-key', {
-      userID: '123',
-      customIDs: { customID: '666' },
-    });
-    await client.initializeAsync();
-    expect(hasCustomID).toBeTruthy();
   });
 });

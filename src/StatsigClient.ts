@@ -1,4 +1,4 @@
-import DynamicConfig from './DynamicConfig';
+import DynamicConfig, { OnDefaultValueFallback } from './DynamicConfig';
 import ErrorBoundary from './ErrorBoundary';
 import {
   StatsigErrorMessage,
@@ -10,15 +10,16 @@ import StatsigIdentity from './StatsigIdentity';
 import StatsigLogger from './StatsigLogger';
 import StatsigNetwork from './StatsigNetwork';
 import StatsigSDKOptions, { StatsigOptions } from './StatsigSDKOptions';
-import StatsigStore, {
+import {
   EvaluationDetails,
   EvaluationReason,
-  StoreGateFetchResult,
-} from './StatsigStore';
+} from './EvaluationMetadata';
+import StatsigStore from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 import { now } from './utils/Timing';
 import makeLogEvent from './LogEvent';
+import ConfigEvaluation from './ConfigEvaluation';
 
 export default class StatsigClient {
   private _ready: boolean;
@@ -40,7 +41,7 @@ export default class StatsigClient {
   ) {
     if (
       options?.localMode !== true &&
-      (typeof sdkKey !== 'string' || !sdkKey.startsWith('client-'))
+      (typeof sdkKey !== 'string')
     ) {
       throw new StatsigInvalidArgumentError(
         'Invalid key provided.  You must use a Client SDK Key from the Statsig console to initialize the sdk',
@@ -69,8 +70,6 @@ export default class StatsigClient {
     );
     this._store = new StatsigStore(
       this._identity,
-      this._logger.logConfigDefaultValueFallback,
-      this._options.initializeValues,
     );
 
     this._errorBoundary._setStatsigMetadata(this._identity._statsigMetadata);
@@ -81,28 +80,6 @@ export default class StatsigClient {
 
       setTimeout(() => this._delayedSetup(), 20);
     }
-  }
-
-  public setInitializeValues(initializeValues: Record<string, unknown>): void {
-    this._errorBoundary._capture(
-      'setInitializeValues',
-      () => {
-        this._store.bootstrap(initializeValues);
-        if (!this._ready) {
-          // the sdk is usable and considered initialized when configured
-          // with initializeValues
-          this._ready = true;
-          this._initCalled = true;
-        }
-        // we wont have access to window/document/localStorage if these run on the server
-        // so try to run whenever this is called
-        this._logger.sendSavedRequests();
-      },
-      () => {
-        this._ready = true;
-        this._initCalled = true;
-      },
-    );
   }
 
   public async initializeAsync(): Promise<void> {
@@ -273,106 +250,6 @@ export default class StatsigClient {
     });
   }
 
-  public updateUserWithValues(
-    user: StatsigUser | null,
-    values: Record<string, unknown>,
-  ): boolean {
-    const updateStartTime = Date.now();
-    let fireCompletionCallback: (
-      success: boolean,
-      error: string | null,
-    ) => void | null;
-
-    return this._errorBoundary._capture(
-      'updateUserWithValues',
-      () => {
-        if (!this.initializeCalled()) {
-          throw new StatsigUninitializedError(
-            StatsigErrorMessage.REQUIRE_ASYNC_INITIALIZE,
-          );
-        }
-
-        fireCompletionCallback = (success: boolean, error: string | null) => {
-          const cb = this._options.updateUserCompletionCallback;
-          cb?.(Date.now() - updateStartTime, success, error);
-        };
-
-        this._identity._user = this._normalizeUser(user);
-        this._store.bootstrap(values);
-        fireCompletionCallback(true, null);
-        return true;
-      },
-      () => {
-        fireCompletionCallback?.(
-          false,
-          'Failed to update user. An unexpected error occured.',
-        );
-        return false;
-      },
-    );
-  }
-
-  public async updateUser(user: StatsigUser | null): Promise<boolean> {
-    const updateStartTime = Date.now();
-    let fireCompletionCallback: (
-      success: boolean,
-      error: string | null,
-    ) => void | null;
-
-    return this._errorBoundary._capture(
-      'updateUser',
-      async () => {
-        if (!this.initializeCalled()) {
-          throw new StatsigUninitializedError(
-            StatsigErrorMessage.REQUIRE_ASYNC_INITIALIZE,
-          );
-        }
-
-        fireCompletionCallback = (success: boolean, error: string | null) => {
-          const cb = this._options.updateUserCompletionCallback;
-          cb?.(Date.now() - updateStartTime, success, error);
-        };
-
-        this._identity._user = this._normalizeUser(user);
-        this._store.updateUser();
-        this._logger.resetDedupeKeys();
-
-        if (this._pendingInitPromise != null) {
-          await this._pendingInitPromise;
-        }
-
-        if (this._options.localMode) {
-          fireCompletionCallback(true, null);
-          return Promise.resolve(true);
-        }
-
-        const currentUser = this._identity._user;
-        this._pendingInitPromise = this._fetchAndSaveValues(
-          currentUser,
-        ).finally(() => {
-          this._pendingInitPromise = null;
-        });
-
-        return this._pendingInitPromise
-          .then(() => {
-            fireCompletionCallback(true, null);
-            return Promise.resolve(true);
-          })
-          .catch((error) => {
-            fireCompletionCallback(false, `Failed to update user: ${error}`);
-            return Promise.resolve(false);
-          });
-      },
-      () => {
-        fireCompletionCallback(
-          false,
-          'Failed to update user. An unexpected error occured.',
-        );
-        return Promise.resolve(false);
-      },
-    );
-  }
-
   /**
    * Informs the statsig SDK that the client is closing or shutting down
    * so the SDK can clean up internal state
@@ -449,7 +326,7 @@ export default class StatsigClient {
       .fetchValues(user, sinceTime, timeout)
       .eventually((json) => {
         if (json?.has_updates) {
-          this._store.save(user, json, false);
+          this._store.save(user, json);
         }
       })
       .then(async (json: Record<string, any>) => {
@@ -476,13 +353,13 @@ export default class StatsigClient {
         if (callsite === 'checkGate') {
           this._logGateExposureImpl(gateName, result);
         }
-        return result.gate.value === true;
+        return result.value === true;
       },
       () => false,
     );
   }
 
-  private _getGateFromStore(gateName: string): StoreGateFetchResult {
+  private _getGateFromStore(gateName: string): ConfigEvaluation {
     this._ensureStoreLoaded();
     if (typeof gateName !== 'string' || gateName.length === 0) {
       throw new StatsigInvalidArgumentError(
@@ -494,19 +371,18 @@ export default class StatsigClient {
 
   private _logGateExposureImpl(
     gateName: string,
-    fetchResult?: StoreGateFetchResult,
+    fetchResult?: ConfigEvaluation,
   ) {
     const isManualExposure = !fetchResult;
     const result = fetchResult ?? this._getGateFromStore(gateName);
-    const gate = result.gate;
 
     this._logger.logGateExposure(
       this._identity._user,
       gateName,
-      gate.value,
-      gate.rule_id,
-      gate.secondary_exposures,
-      result.evaluationDetails,
+      result.value,
+      result.rule_id,
+      result.secondary_exposures,
+      result.evaluation_details,
       isManualExposure,
     );
   }
@@ -535,8 +411,16 @@ export default class StatsigClient {
         'Must pass a valid string as the configName.',
       );
     }
-
-    return this._store.getConfig(configName);
+    const evaluation = this._store.getConfig(configName);
+    return new DynamicConfig(
+      configName,
+      evaluation.json_value,
+      evaluation.rule_id,
+      evaluation.evaluation_details,
+      evaluation.secondary_exposures,
+      undefined,
+      this._makeOnConfigDefaultValueFallback(this._identity._user),
+    );
   }
 
   private _logConfigExposureImpl(configName: string, config?: DynamicConfig) {
@@ -551,6 +435,29 @@ export default class StatsigClient {
       localConfig._evaluationDetails,
       isManualExposure,
     );
+  }
+
+  private _makeOnConfigDefaultValueFallback(
+    user: StatsigUser | null,
+  ): OnDefaultValueFallback {
+    return (config, parameter, defaultValueType, valueType) => {
+      if (!this._initCalled) {
+        return;
+      }
+
+      this._logger.logConfigDefaultValueFallback(
+        user,
+        `Parameter ${parameter} is a value of type ${valueType}.
+          Returning requested defaultValue type ${defaultValueType}`,
+        {
+          name: config._name,
+          ruleID: config._ruleID,
+          parameter,
+          defaultValueType,
+          valueType,
+        },
+      );
+    };
   }
 
   private _getLayerImpl(
@@ -581,8 +488,8 @@ export default class StatsigClient {
         'Must pass a valid string as the layerName.',
       );
     }
-
-    return this._store.getLayer(logParameterFunction, layerName);
+    // TODO @tore
+    return Layer._create(layerName, {}, '', { reason: EvaluationReason.Unrecognized, time: Date.now() });//this._store.getLayer(logParameterFunction, layerName);
   }
 
   private _logLayerParameterExposureForLayer = (

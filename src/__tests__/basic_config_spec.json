@@ -1,0 +1,81 @@
+{
+  "dynamic_configs": [
+    {
+      "name": "test_config",
+      "type": "dynamic_config",
+      "salt": "221f91be-0a0e-4fcc-90c0-a08d40532cee",
+      "enabled": true,
+      "defaultValue": {
+        "bool": true,
+        "number": 2,
+        "string": "string",
+        "object": {
+          "key": "value",
+          "key2": 123
+        },
+        "boolStr1": "true",
+        "boolStr2": "FALSE",
+        "numberStr1": "3",
+        "numberStr2": "3.3",
+        "numberStr3": "3.3.3"
+      },
+      "rules": [],
+      "isDeviceBased": false,
+      "idType": "userID",
+      "entity": "dynamic_config"
+    }
+  ],
+  "feature_gates": [
+    {
+      "name": "test_gate",
+      "type": "feature_gate",
+      "salt": "999dc1c4-77a5-41af-873d-5b69978df37f",
+      "enabled": true,
+      "defaultValue": false,
+      "rules": [
+        {
+          "name": "5NfZsHpOUSn3ts7koLusbK",
+          "groupName": "First gate rule",
+          "passPercentage": 100,
+          "conditions": [
+            {
+              "type": "user_field",
+              "targetValue": [
+                "test@statsig.com"
+              ],
+              "operator": "any",
+              "field": "email",
+              "additionalValues": {},
+              "isDeviceBased": false,
+              "idType": "userID"
+            }
+          ],
+          "returnValue": true,
+          "id": "5NfZsHpOUSn3ts7koLusbK",
+          "salt": "1cac7bda-75ee-4649-a63c-64192fa826ca",
+          "isDeviceBased": false,
+          "idType": "userID"
+        }
+      ],
+      "isDeviceBased": false,
+      "idType": "userID",
+      "entity": "feature_gate"
+    }
+  ],
+  "id_lists": {},
+  "layers": {},
+  "layer_configs": [],
+  "has_updates": true,
+  "time": 1692735600206,
+  "company_id": "2NhNJP8mpzRpYwFNw5Y0u8",
+  "diagnostics": {
+    "initialize": 1000,
+    "dcs": 1000,
+    "download_config_specs": 1000,
+    "idlist": 100,
+    "get_id_list": 100,
+    "get_id_list_sources": 100,
+    "log": 100,
+    "log_event": 100
+  }
+}

@@ -49,6 +49,11 @@ export default class Identity {
     };
   }
 
+
+  public getCurrentUser(): StatsigUser | null {
+    return this._user;
+  }
+
   saveStableID(): void {
     if (this._statsigMetadata.stableID != null) {
       StatsigLocalStorage.setItem(

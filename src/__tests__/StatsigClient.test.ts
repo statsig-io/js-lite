@@ -35,7 +35,7 @@ describe('Verify behavior of StatsigClient', () => {
   } | null;
   // @ts-ignore
   global.fetch = jest.fn((url, params) => {
-    if (!['https://featuregates.org/v1/initialize'].includes(url.toString())) {
+    if (!url.toString().includes('download_config_specs')) {
       return Promise.reject(new Error('invalid initialize endpoint'));
     }
 
@@ -75,26 +75,6 @@ describe('Verify behavior of StatsigClient', () => {
     expect(() => {
       client.logEvent('event');
     }).not.toThrow();
-  });
-
-  test('that environment does not modify the passed in user', async () => {
-    expect.assertions(3);
-    const user = { userID: '123' };
-    const statsig = new StatsigClient(sdkKey, user, {
-      environment: {
-        tier: 'development',
-      },
-    });
-    await statsig.initializeAsync();
-    expect(statsig._options.environment).toEqual({
-      tier: 'development',
-    });
-    expect(user).toEqual({ userID: '123' });
-
-    const newUser = { userID: 'abc' };
-    await statsig.updateUser(newUser);
-
-    expect(newUser).toEqual({ userID: 'abc' });
   });
 
   test('that overriding api overrides both api and logevent api', async () => {
@@ -146,7 +126,7 @@ describe('Verify behavior of StatsigClient', () => {
   });
 
   test('that localMode supports a dummy statsig', async () => {
-    expect.assertions(4);
+    expect.assertions(3);
     parsedRequestBody = null;
     const statsig = new StatsigClient(
       sdkKey,
@@ -160,7 +140,5 @@ describe('Verify behavior of StatsigClient', () => {
 
     expect(statsig.checkGate('test_gate')).toEqual(false);
     expect(statsig.getConfig('test_config').getValue()).toEqual({});
-
-    expect(statsig.updateUser({ userID: '123456' })).resolves.not.toThrow();
   });
 });

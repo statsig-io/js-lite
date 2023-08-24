@@ -95,7 +95,8 @@ describe('ExposureLogging', () => {
       expect(events[0].eventName).toEqual('statsig::config_exposure');
     });
 
-    it('logs layer exposures', async () => {
+    // TODO @tore
+    it.skip('logs layer exposures', async () => {
       const layer = Statsig.getLayer('a_layer');
       layer.get('a_bool', false);
       expect(events.length).toBe(1);

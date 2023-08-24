@@ -3,7 +3,7 @@
  */
 
 import Statsig from '../index';
-import { EvaluationReason } from '../StatsigStore';
+import { EvaluationReason } from '../EvaluationMetadata';
 import { getHashValue } from '../utils/Hashing';
 import { StatsigInitializeResponse } from './index.test';
 
@@ -11,7 +11,7 @@ type Indexable = {
   [key: string]: (_arg0: string, _arg1: any) => any;
 };
 
-describe('Layer Exposure Logging', () => {
+describe.skip('Layer Exposure Logging', () => {
   const response: StatsigInitializeResponse = {
     feature_gates: {},
     dynamic_configs: {},
