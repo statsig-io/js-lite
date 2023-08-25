@@ -64,5 +64,8 @@
       "style": "module",
       "parser": "typescript"
     }
+  },
+  "dependencies": {
+    "js-sha256": "^0.9.0"
   }
 }
