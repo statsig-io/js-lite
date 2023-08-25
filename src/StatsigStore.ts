@@ -38,7 +38,7 @@ export default class StatsigStore {
     return this.loaded;
   }
 
-  public getLastUpdateTime(user: StatsigUser | null): number | null {
+  public getLastUpdateTime(user: StatsigUser): number | null {
     return this.lcut;
   }
 
@@ -80,14 +80,14 @@ export default class StatsigStore {
   }
 
   public checkGate(
-    user: StatsigUser | null,
+    user: StatsigUser,
     gateName: string,
   ): ConfigEvaluation {
     return this.evaluator.checkGate(user, gateName);
   }
 
   public getConfig(
-    user: StatsigUser | null,
+    user: StatsigUser,
     configName: string,
   ): ConfigEvaluation {
     // TODO-HACK @tore use evaluator
@@ -95,7 +95,7 @@ export default class StatsigStore {
   }
 
   public getExperiment(
-    user: StatsigUser | null,
+    user: StatsigUser,
     expName: string,
   ): ConfigEvaluation {
     // TODO-HACK @tore use evaluator
@@ -103,7 +103,7 @@ export default class StatsigStore {
   }
 
   public getLayer(
-    user: StatsigUser | null,
+    user: StatsigUser,
     layerName: string,
   ): ConfigEvaluation {
     return this.evaluator.getLayer(user, layerName);

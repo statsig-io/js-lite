@@ -73,7 +73,7 @@ export default class StatsigNetwork {
       return true;
     }
     const url = new URL(
-      this._options.eventLoggingApi + StatsigEndpoint.LogEventBeacon,
+      this._options.eventLoggingAPI + StatsigEndpoint.LogEventBeacon,
     );
     url.searchParams.append('k', this._identity._sdkKey);
     payload.clientTime = Date.now() + '';
@@ -107,8 +107,8 @@ export default class StatsigNetwork {
     }
 
     const api = [StatsigEndpoint.DownloadConfigSpecs].includes(endpointName)
-      ? this._options.api
-      : this._options.eventLoggingApi;
+      ? this._options.configSpecAPI
+      : this._options.eventLoggingAPI;
     const url = api + endpointName;
     const counter = this.leakyBucket[url];
     if (counter != null && counter >= 30) {
@@ -128,8 +128,8 @@ export default class StatsigNetwork {
     const statsigMetadata = this._identity._statsigMetadata;
 
     const params: RequestInit = {
-      method: 'POST',
-      body: body === null ? null : JSON.stringify(body),
+      method: endpointName.includes(StatsigEndpoint.DownloadConfigSpecs) ? 'GET' : 'POST',
+      body: body === null ? undefined : JSON.stringify(body),
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
         'STATSIG-API-KEY': this._identity._sdkKey,
@@ -138,6 +138,7 @@ export default class StatsigNetwork {
         'STATSIG-SDK-VERSION': statsigMetadata.sdkVersion,
       },
     };
+
 
     if (this.canUseKeepalive && useKeepalive) {
       params.keepalive = true;

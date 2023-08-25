@@ -4,6 +4,7 @@
 
 import StatsigClient from '../StatsigClient';
 import LocalStorageMock from './LocalStorageMock';
+import { DEFAULT_EVENT_LOGGING_API, DEFAULT_CONFIG_SPEC_API } from '../StatsigSDKOptions';
 
 import { getHashValue } from '../utils/Hashing';
 
@@ -77,19 +78,34 @@ describe('Verify behavior of StatsigClient', () => {
     }).not.toThrow();
   });
 
-  test('that overriding api overrides both api and logevent api', async () => {
+  test('that overriding config spec api does not override log event', async () => {
     expect.assertions(2);
     const statsig = new StatsigClient(
       sdkKey,
       {
-        api: 'https://statsig.jkw.com/v1',
+        configSpecAPI: 'https://statsig.jkw.com/v1',
       },
     );
 
     await statsig.initializeAsync();
 
-    expect(statsig._options.api).toEqual('https://statsig.jkw.com/v1/');
-    expect(statsig._options.eventLoggingApi).toEqual(
+    expect(statsig._options.configSpecAPI).toEqual('https://statsig.jkw.com/v1/');
+    expect(statsig._options.eventLoggingAPI).toEqual(DEFAULT_EVENT_LOGGING_API);
+  });
+
+  test('that overriding log event api does not override config spec', async () => {
+    expect.assertions(2);
+    const statsig = new StatsigClient(
+      sdkKey,
+      {
+        eventLoggingAPI: 'https://statsig.jkw.com/v1',
+      },
+    );
+
+    await statsig.initializeAsync();
+
+    expect(statsig._options.configSpecAPI).toEqual(DEFAULT_CONFIG_SPEC_API);
+    expect(statsig._options.eventLoggingAPI).toEqual(
       'https://statsig.jkw.com/v1/',
     );
   });
