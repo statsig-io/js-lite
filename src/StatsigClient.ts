@@ -21,6 +21,20 @@ import { now } from './utils/Timing';
 import makeLogEvent from './LogEvent';
 import ConfigEvaluation from './ConfigEvaluation';
 
+export type CheckGateOptions = {
+  disableExposureLogging: boolean,
+};
+
+export type GetExperimentOptions = {
+  disableExposureLogging: boolean,
+  enablePersistantEvaluation: boolean,
+  override: unknown,
+};
+
+export type GetLayerOptions = {
+  disableExposureLogging: boolean,
+};
+
 export default class StatsigClient {
   private _ready: boolean;
   private _initCalled: boolean = false;
@@ -150,21 +164,9 @@ export default class StatsigClient {
    * @returns {boolean} - value of a gate for the user. Gates are "off" (return false) by default
    * @throws Error if initialize() is not called first, or gateName is not a string
    */
-  public checkGate(user: StatsigUser, gateName: string): boolean {
+  public checkGate(user: StatsigUser, gateName: string, options?: CheckGateOptions): boolean {
     const normalizedUser = this._normalizeUser(user);
-    return this._checkGateImpl(normalizedUser, gateName, 'checkGate');
-  }
-
-  public checkGateWithExposureLoggingDisabled(
-    user: StatsigUser,
-    gateName: string,
-  ): boolean {
-    const normalizedUser = this._normalizeUser(user);
-    return this._checkGateImpl(
-      normalizedUser, 
-      gateName,
-      'checkGateWithExposureLoggingDisabled',
-    );
+    return this._checkGateImpl(normalizedUser, gateName, options);
   }
 
   public logGateExposure(
@@ -188,19 +190,7 @@ export default class StatsigClient {
     configName: string,
   ): DynamicConfig {
     const normalizedUser = this._normalizeUser(user);
-    return this._getConfigImpl(normalizedUser, configName, 'getConfig');
-  }
-
-  public getConfigWithExposureLoggingDisabled(
-    user: StatsigUser,
-    configName: string,
-  ): DynamicConfig {
-    const normalizedUser = this._normalizeUser(user);
-    return this._getConfigImpl(
-      normalizedUser, 
-      configName,
-      'getConfigWithExposureLoggingDisabled',
-    );
+    return this._getConfigImpl(normalizedUser, configName);
   }
 
   public logConfigExposure(user: StatsigUser, configName: string) {
@@ -210,17 +200,9 @@ export default class StatsigClient {
     });
   }
 
-  public getExperiment(user: StatsigUser, experimentName: string): DynamicConfig {
+  public getExperiment(user: StatsigUser, experimentName: string, options?: GetExperimentOptions): DynamicConfig {
     const normalizedUser = this._normalizeUser(user);
-    return this.getConfig(normalizedUser, experimentName);
-  }
-
-  public getExperimentWithExposureLoggingDisabled(
-    user: StatsigUser,
-    experimentName: string,
-  ): DynamicConfig {
-    const normalizedUser = this._normalizeUser(user);
-    return this.getConfigWithExposureLoggingDisabled(normalizedUser, experimentName);
+    return this._getConfigImpl(normalizedUser, experimentName, options);
   }
 
   public logExperimentExposure(user: StatsigUser, experimentName: string) {
@@ -228,14 +210,13 @@ export default class StatsigClient {
     this.logConfigExposure(normalizedUser, experimentName);
   }
 
-  public getLayer(user: StatsigUser, layerName: string): Layer {
+  public getLayer(
+    user: StatsigUser,
+    layerName: string,
+    options?: GetLayerOptions,
+  ): Layer {
     const normalizedUser = this._normalizeUser(user);
-    return this._getLayerImpl(normalizedUser, layerName, 'getLayer');
-  }
-
-  public getLayerWithExposureLoggingDisabled(user: StatsigUser, layerName: string): Layer {
-    const normalizedUser = this._normalizeUser(user);
-    return this._getLayerImpl(normalizedUser, layerName, 'getLayerWithExposureLoggingDisabled');
+    return this._getLayerImpl(normalizedUser, layerName, options);
   }
 
   public logLayerParameterExposure(user: StatsigUser, layerName: string, parameterName: string) {
@@ -354,13 +335,13 @@ export default class StatsigClient {
   private _checkGateImpl(
     user: StatsigUser,
     gateName: string,
-    callsite: 'checkGate' | 'checkGateWithExposureLoggingDisabled',
+    options?: CheckGateOptions,
   ) {
     return this._errorBoundary._capture(
-      callsite,
+      "checkGate",
       () => {
         const result = this._getGateFromStore(user, gateName);
-        if (callsite === 'checkGate') {
+        if (!options?.disableExposureLogging) {
           this._logGateExposureImpl(user, gateName, result);
         }
         return result.value === true;
@@ -401,13 +382,13 @@ export default class StatsigClient {
   private _getConfigImpl(
     user: StatsigUser,
     configName: string,
-    callsite: 'getConfig' | 'getConfigWithExposureLoggingDisabled',
+    options?: GetExperimentOptions,
   ): DynamicConfig {
     return this._errorBoundary._capture(
-      callsite,
+      'getConfig',
       () => {
         const result = this._getConfigFromStore(user, configName);
-        if (callsite === 'getConfig') {
+        if (!options?.disableExposureLogging) {
           this._logConfigExposureImpl(user, configName, result);
         }
         return result;
@@ -475,15 +456,15 @@ export default class StatsigClient {
   private _getLayerImpl(
     user: StatsigUser,
     layerName: string,
-    callsite: 'getLayer' | 'getLayerWithExposureLoggingDisabled',
+    options?: GetLayerOptions,
   ) {
     return this._errorBoundary._capture(
-      callsite,
+      "getLayer",
       () => {
         const logFunc =
-          callsite === 'getLayer'
-            ? this._logLayerParameterExposureForLayer
-            : null;
+          options?.disableExposureLogging
+            ? null
+            : this._logLayerParameterExposureForLayer;
         return this._getLayerFromStore(user, logFunc, layerName);
       },
       () =>
