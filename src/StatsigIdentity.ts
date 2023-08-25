@@ -19,7 +19,7 @@ export default class Identity {
   readonly _sdkKey: string;
   readonly _statsigMetadata: StatsigMetadata;
 
-  private _sdkType: string = 'js-lite';
+  private _sdkType: string = 'local-eval-js';
 
   private readonly _sdkVersion: string;
 
