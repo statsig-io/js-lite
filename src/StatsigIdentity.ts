@@ -1,6 +1,4 @@
-import { StatsigUser } from './StatsigUser';
 import { STATSIG_STABLE_ID_KEY } from './utils/Constants';
-import { getUserCacheKey } from './utils/Hashing';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 
 import { version as SDKVersion } from './SDKVersion';
@@ -18,8 +16,6 @@ export type StatsigMetadata = {
 };
 
 export default class Identity {
-  _user: StatsigUser | null;
-
   readonly _sdkKey: string;
   readonly _statsigMetadata: StatsigMetadata;
 
@@ -29,11 +25,9 @@ export default class Identity {
 
   constructor(
     sdkKey: string,
-    user: StatsigUser | null,
     overrideStableID?: string | null,
   ) {
     this._sdkKey = sdkKey;
-    this._user = user;
     this._sdkVersion = SDKVersion;
 
     let stableID = overrideStableID;
@@ -49,11 +43,6 @@ export default class Identity {
     };
   }
 
-
-  public getCurrentUser(): StatsigUser | null {
-    return this._user;
-  }
-
   saveStableID(): void {
     if (this._statsigMetadata.stableID != null) {
       StatsigLocalStorage.setItem(
@@ -61,10 +50,6 @@ export default class Identity {
         this._statsigMetadata.stableID,
       );
     }
-  }
-
-  getUserCacheKey(): string {
-    return getUserCacheKey(this._user);
   }
 
   private _getUUID(): string {

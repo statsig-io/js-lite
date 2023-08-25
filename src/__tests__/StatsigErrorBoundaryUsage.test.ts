@@ -11,6 +11,7 @@ describe('Statsig ErrorBoundary Usage', () => {
   let requests: { url: RequestInfo; params: RequestInit }[] = [];
   let client: StatsigClient;
   let responseString: unknown = '{"has_updates": true}';
+  const user = null;
 
   function expectSingleError(
     info: string,
@@ -54,31 +55,31 @@ describe('Statsig ErrorBoundary Usage', () => {
   });
 
   it('recovers from errors and returns default gate value', async () => {
-    const result = client.checkGate('a_gate');
+    const result = client.checkGate(user, 'a_gate');
     expect(result).toBe(false);
     expectSingleError('_store.checkGate');
   });
 
   it('recovers from errors and returns default config value', async () => {
-    const result = client.getConfig('a_config');
+    const result = client.getConfig(user, 'a_config');
     expect(result instanceof DynamicConfig).toBe(true);
     expectSingleError('_store.getConfig');
   });
 
   it('recovers from errors and returns default experiment value', async () => {
-    const result = client.getExperiment('an_experiment');
+    const result = client.getExperiment(user, 'an_experiment');
     expect(result instanceof DynamicConfig).toBe(true);
     expectSingleError('_store.getConfig');
   });
 
   it.skip('recovers from errors and returns default layer value', async () => {
-    const result = client.getLayer('a_layer');
+    const result = client.getLayer(user, 'a_layer');
     expect(result instanceof Layer).toBe(true);
     expectSingleError('_store.getLayer');
   });
 
   it('recovers from errors with logEvent', () => {
-    client.logEvent('an_event');
+    client.logEvent(user, 'an_event');
     expectSingleError('_logger.log');
   });
 

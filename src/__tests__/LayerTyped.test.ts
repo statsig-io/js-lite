@@ -3,6 +3,7 @@ import { EvaluationReason } from '../EvaluationMetadata';
 
 describe.skip('Verify behavior of Layer', () => {
   const testLayer = Layer._create(
+    {},
     'test_layer',
     {
       bool: true,

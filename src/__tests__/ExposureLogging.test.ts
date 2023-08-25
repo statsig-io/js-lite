@@ -58,7 +58,6 @@ describe('ExposureLogging', () => {
     Statsig.instance = null;
     await Statsig.initialize(
       'client-key',
-      { userID: 'dloomb' },
       { initTimeoutMs: 1 },
     );
 
@@ -72,7 +71,7 @@ describe('ExposureLogging', () => {
 
   describe('standard use', () => {
     it('logs gate exposures', async () => {
-      Statsig.checkGate('a_gate');
+      Statsig.checkGate(null, 'a_gate');
       expect(events.length).toBe(1);
       expect(events[0].metadata.gate).toEqual('a_gate');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
@@ -80,7 +79,7 @@ describe('ExposureLogging', () => {
     });
 
     it('logs config exposures', async () => {
-      Statsig.getConfig('a_config');
+      Statsig.getConfig(null, 'a_config');
       expect(events.length).toBe(1);
       expect(events[0].metadata.config).toEqual('a_config');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
@@ -88,7 +87,7 @@ describe('ExposureLogging', () => {
     });
 
     it('logs experiment exposures', async () => {
-      Statsig.getExperiment('an_experiment');
+      Statsig.getExperiment(null, 'an_experiment');
       expect(events.length).toBe(1);
       expect(events[0].metadata.config).toEqual('an_experiment');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
@@ -97,7 +96,7 @@ describe('ExposureLogging', () => {
 
     // TODO @tore
     it.skip('logs layer exposures', async () => {
-      const layer = Statsig.getLayer('a_layer');
+      const layer = Statsig.getLayer(null, 'a_layer');
       layer.get('a_bool', false);
       expect(events.length).toBe(1);
       expect(events[0].metadata.config).toEqual('a_layer');

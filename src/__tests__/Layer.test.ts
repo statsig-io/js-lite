@@ -3,6 +3,7 @@ import { EvaluationReason } from '../EvaluationMetadata';
 
 describe.skip('Verify behavior of Layer', () => {
   const testLayer = Layer._create(
+    {},
     'test_layer',
     {
       bool: true,
@@ -31,7 +32,7 @@ describe.skip('Verify behavior of Layer', () => {
   });
 
   test('Test constructor', () => {
-    const layer = Layer._create('name', { test: 123 }, 'default', {
+    const layer = Layer._create({}, 'name', { test: 123 }, 'default', {
       reason: EvaluationReason.Network,
       time: Date.now(),
     });
@@ -113,7 +114,7 @@ describe.skip('Verify behavior of Layer', () => {
   });
 
   test('Behavior of dummy layers', () => {
-    const dummyLayer = Layer._create('layerName', {}, '', {
+    const dummyLayer = Layer._create({}, 'layerName', {}, '', {
       reason: EvaluationReason.Uninitialized,
       time: Date.now(),
     });

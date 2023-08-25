@@ -217,7 +217,6 @@ export default class StatsigLogger {
     message: string,
     metadata: object,
   ) => {
-    console.log("logConfigDefaultValueFallback", message, metadata);
     const defaultValueEvent = makeLogEvent(
       DEFAULT_VALUE_WARNING,
       user,

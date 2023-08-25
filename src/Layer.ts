@@ -1,4 +1,5 @@
 import { EvaluationDetails } from './EvaluationMetadata';
+import { StatsigUser } from './StatsigUser';
 
 export type LogParameterFunction = (
   layer: Layer,
@@ -6,6 +7,7 @@ export type LogParameterFunction = (
 ) => void;
 
 export default class Layer {
+  readonly _user: StatsigUser | null;
   readonly _name: string;
   readonly _value: Record<string, any>;
   readonly _ruleID: string;
@@ -17,6 +19,7 @@ export default class Layer {
   readonly _logParameterFunction: LogParameterFunction | null;
 
   private constructor(
+    user: StatsigUser | null,
     name: string,
     layerValue: Record<string, any>,
     ruleID: string,
@@ -27,6 +30,7 @@ export default class Layer {
     allocatedExperimentName: string = '',
     explicitParameters: string[] = [],
   ) {
+    this._user = user;
     this._logParameterFunction = logParameterFunction;
     this._name = name;
     this._value = JSON.parse(JSON.stringify(layerValue ?? {}));
@@ -39,6 +43,7 @@ export default class Layer {
   }
 
   static _create(
+    user: StatsigUser | null,
     name: string,
     value: Record<string, any>,
     ruleID: string,
@@ -50,6 +55,7 @@ export default class Layer {
     explicitParameters: string[] = [],
   ): Layer {
     return new Layer(
+      user,
       name,
       value,
       ruleID,
