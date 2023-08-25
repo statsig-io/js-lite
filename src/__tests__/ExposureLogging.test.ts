@@ -3,7 +3,7 @@
  */
 
 import Statsig from '..';
-import { getHashValue } from '../utils/Hashing';
+import * as TestData from './basic_config_spec.json';
 
 describe('ExposureLogging', () => {
   let events: {
@@ -25,29 +25,7 @@ describe('ExposureLogging', () => {
         ok: true,
         text: () =>
           Promise.resolve(
-            JSON.stringify({
-              feature_gates: {
-                [getHashValue('a_gate')]: {
-                  value: true,
-                },
-              },
-              dynamic_configs: {
-                [getHashValue('an_experiment')]: {
-                  value: { a_bool: true },
-                },
-                [getHashValue('a_config')]: {
-                  value: { a_bool: true },
-                },
-              },
-              layer_configs: {
-                [getHashValue('a_layer')]: {
-                  value: { a_bool: true },
-                },
-              },
-              sdkParams: {},
-              has_updates: true,
-              time: 1647984444418,
-            }),
+            JSON.stringify(TestData),
           ),
       });
     });
@@ -71,7 +49,7 @@ describe('ExposureLogging', () => {
 
   describe('standard use', () => {
     it('logs gate exposures', async () => {
-      Statsig.checkGate(null, 'a_gate');
+      Statsig.checkGate({}, 'a_gate');
       expect(events.length).toBe(1);
       expect(events[0].metadata.gate).toEqual('a_gate');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
@@ -79,7 +57,7 @@ describe('ExposureLogging', () => {
     });
 
     it('logs config exposures', async () => {
-      Statsig.getConfig(null, 'a_config');
+      Statsig.getConfig({}, 'a_config');
       expect(events.length).toBe(1);
       expect(events[0].metadata.config).toEqual('a_config');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
@@ -87,19 +65,18 @@ describe('ExposureLogging', () => {
     });
 
     it('logs experiment exposures', async () => {
-      Statsig.getExperiment(null, 'an_experiment');
+      Statsig.getExperiment({}, 'an_experiment');
       expect(events.length).toBe(1);
       expect(events[0].metadata.config).toEqual('an_experiment');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
       expect(events[0].eventName).toEqual('statsig::config_exposure');
     });
 
-    // TODO @tore
-    it.skip('logs layer exposures', async () => {
-      const layer = Statsig.getLayer(null, 'a_layer');
-      layer.get('a_bool', false);
+    it('logs layer exposures', async () => {
+      const layer = Statsig.getLayer({}, 'layer');
+      layer.get('a_string', "default");
       expect(events.length).toBe(1);
-      expect(events[0].metadata.config).toEqual('a_layer');
+      expect(events[0].metadata.config).toEqual('layer');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
       expect(events[0].eventName).toEqual('statsig::layer_exposure');
     });

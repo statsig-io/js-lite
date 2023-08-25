@@ -1,5 +1,5 @@
-const DEFAULT_FEATURE_GATE_API = 'https://featuregates.org/v1/';
-const DEFAULT_EVENT_LOGGING_API = 'https://events.statsigapi.net/v1/';
+export const DEFAULT_CONFIG_SPEC_API = 'https://dcs-worker.statsig.workers.dev/';
+export const DEFAULT_EVENT_LOGGING_API = 'https://events.statsigapi.net/v1/';
 
 export const INIT_TIMEOUT_DEFAULT_MS = 3000;
 
@@ -8,14 +8,9 @@ export type StatsigEnvironment = {
   [key: string]: string | undefined;
 };
 
-export type UpdateUserCompletionCallback = (
-  durationMs: number,
-  success: boolean,
-  message: string | null,
-) => void;
-
 export type StatsigOptions = {
-  api?: string;
+  configSpecAPI?: string;
+  eventLoggingAPI?: string;
   disableCurrentPageLogging?: boolean;
   environment?: StatsigEnvironment;
   loggingIntervalMillis?: number;
@@ -27,10 +22,8 @@ export type StatsigOptions = {
   disableErrorLogging?: boolean;
   disableAutoMetricsLogging?: boolean;
   initializeValues?: Record<string, any> | null;
-  eventLoggingApi?: string;
   disableLocalStorage?: boolean;
   ignoreWindowUndefined?: boolean;
-  updateUserCompletionCallback?: UpdateUserCompletionCallback;
 };
 
 type BoundedNumberInput = {
@@ -40,7 +33,8 @@ type BoundedNumberInput = {
 };
 
 export default class StatsigSDKOptions {
-  readonly api: string;
+  readonly configSpecAPI: string;
+  readonly eventLoggingAPI: string;
   readonly disableCurrentPageLogging: boolean;
   readonly environment: StatsigEnvironment | null;
   readonly loggingIntervalMillis: number;
@@ -52,17 +46,15 @@ export default class StatsigSDKOptions {
   readonly disableErrorLogging: boolean;
   readonly disableAutoMetricsLogging: boolean;
   readonly initializeValues: Record<string, any> | null;
-  readonly eventLoggingApi: string;
   readonly disableLocalStorage: boolean;
   readonly ignoreWindowUndefined: boolean;
-  readonly updateUserCompletionCallback: UpdateUserCompletionCallback | null;
 
   constructor(options?: StatsigOptions | null) {
     if (options == null) {
       options = {};
     }
-    let api = options.api ?? DEFAULT_FEATURE_GATE_API;
-    this.api = api.endsWith('/') ? api : api + '/';
+    this.configSpecAPI = this.normalizeAPI(options.configSpecAPI, DEFAULT_CONFIG_SPEC_API);
+    this.eventLoggingAPI = this.normalizeAPI(options.eventLoggingAPI, DEFAULT_EVENT_LOGGING_API);
     this.disableCurrentPageLogging = options.disableCurrentPageLogging ?? false;
     this.environment = options.environment ?? null;
     this.loggingIntervalMillis = this.normalizeNumberInput(
@@ -92,14 +84,17 @@ export default class StatsigSDKOptions {
     this.disableErrorLogging = options.disableErrorLogging ?? false;
     this.disableAutoMetricsLogging = options.disableAutoMetricsLogging ?? false;
     this.initializeValues = options.initializeValues ?? null;
-    let eventLoggingApi =
-      options.eventLoggingApi ?? options.api ?? DEFAULT_EVENT_LOGGING_API;
-    this.eventLoggingApi = eventLoggingApi.endsWith('/')
-      ? eventLoggingApi
-      : eventLoggingApi + '/';
+    
     this.disableLocalStorage = options.disableLocalStorage ?? false;
     this.ignoreWindowUndefined = options?.ignoreWindowUndefined ?? false;
-    this.updateUserCompletionCallback = options?.updateUserCompletionCallback ?? null;
+  }
+
+  private normalizeAPI(
+    input: string | undefined,
+    defaultValue: string,
+  ): string {
+    let api = input ?? defaultValue;
+    return api.endsWith('/') ? api : api + '/';
   }
 
   private normalizeNumberInput(

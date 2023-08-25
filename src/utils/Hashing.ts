@@ -14,7 +14,7 @@ export function getHashValue(value: string): string {
   return SimpleHash(value);
 }
 
-export function getUserCacheKey(user: StatsigUser | null): string {
+export function getUserCacheKey(user: StatsigUser): string {
   let key = `userID:${String(user?.userID ?? '')}`;
 
   const customIDs = user?.customIDs;

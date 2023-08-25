@@ -43,7 +43,7 @@ export default class Identity {
     };
   }
 
-  saveStableID(): void {
+  public saveStableID(): void {
     if (this._statsigMetadata.stableID != null) {
       StatsigLocalStorage.setItem(
         STATSIG_STABLE_ID_KEY,

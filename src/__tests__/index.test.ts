@@ -55,7 +55,7 @@ describe('Verify behavior of top level index functions', () => {
 
   test('Verify checkGate throws when calling before initialize', () => {
     expect(() => {
-      statsig.checkGate(null, 'gate_that_doesnt_exist');
+      statsig.checkGate({}, 'gate_that_doesnt_exist');
     }).toThrowError('Call and wait for initialize() to finish first.');
     // @ts-ignore
     expect(statsig.instance).toBeNull();
@@ -110,10 +110,10 @@ describe('Verify behavior of top level index functions', () => {
   test('Verify getConfig and getExperiment throw when calling before initialize', () => {
     expect.assertions(3);
     expect(() => {
-      statsig.getConfig(null, 'config_that_doesnt_exist');
+      statsig.getConfig({}, 'config_that_doesnt_exist');
     }).toThrowError('Call and wait for initialize() to finish first.');
     expect(() => {
-      statsig.getExperiment(null, 'config_that_doesnt_exist');
+      statsig.getExperiment({}, 'config_that_doesnt_exist');
     }).toThrowError('Call and wait for initialize() to finish first.');
     // @ts-ignore
     expect(statsig.instance).toBeNull();
@@ -121,7 +121,7 @@ describe('Verify behavior of top level index functions', () => {
 
   test('Verify logEvent throws if called before initialize()', () => {
     expect(() => {
-      statsig.logEvent(null, 'test_event');
+      statsig.logEvent({}, 'test_event');
     }).toThrowError('Call and wait for initialize() to finish first.');
     // @ts-ignore
     expect(statsig.instance).toBeNull();
@@ -184,7 +184,7 @@ describe('Verify behavior of top level index functions', () => {
 
         const configExposure = makeLogEvent(
           'statsig::config_exposure',
-          null,
+          {},
           (statsig as any).instance._identity._statsigMetadata,
           null,
           {
@@ -196,10 +196,11 @@ describe('Verify behavior of top level index functions', () => {
           [],
         );
 
-        const config = statsig.getConfig(null, 'test_config');
+        const config = statsig.getConfig({}, 'test_config');
         expect(config?.value).toStrictEqual({
           bool: true,
           number: 2,
+          double: 3.1,
           string: 'string',
           object: {
             key: 'value',
@@ -230,7 +231,7 @@ describe('Verify behavior of top level index functions', () => {
         const spy = jest.spyOn(statsig.instance._logger, 'log');
         const configExposure = makeLogEvent(
           'statsig::config_exposure',
-          null,
+          {},
           (statsig as any).instance._identity._statsigMetadata,
           null,
           {
@@ -242,10 +243,11 @@ describe('Verify behavior of top level index functions', () => {
           [],
         );
 
-        const exp = statsig.getExperiment(null, 'test_config');
+        const exp = statsig.getExperiment({}, 'test_config');
         expect(exp?.value).toStrictEqual({
           bool: true,
           number: 2,
+          double: 3.1,
           string: 'string',
           object: {
             key: 'value',
@@ -292,6 +294,7 @@ describe('Verify behavior of top level index functions', () => {
     expect(config?.value).toStrictEqual({
       bool: true,
       number: 2,
+      double: 3.1,
       string: 'string',
       object: {
         key: 'value',

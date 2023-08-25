@@ -2,7 +2,7 @@ import { StatsigUser } from '../StatsigUser';
 
 export default abstract class BootstrapValidator {
   static isValid(
-    user: StatsigUser | null,
+    user: StatsigUser,
     values: Record<string, unknown>,
   ): boolean {
     try {

@@ -33,8 +33,6 @@ describe('On Default Value Fallback', () => {
         text: () => Promise.resolve(JSON.stringify(TestData)),
       });
     });
-
-    
   });
 
   beforeEach(async () => {

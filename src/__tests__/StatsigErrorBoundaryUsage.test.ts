@@ -11,7 +11,7 @@ describe('Statsig ErrorBoundary Usage', () => {
   let requests: { url: RequestInfo; params: RequestInit }[] = [];
   let client: StatsigClient;
   let responseString: unknown = '{"has_updates": true}';
-  const user = null;
+  const user = {};
 
   function expectSingleError(
     info: string,
@@ -72,7 +72,7 @@ describe('Statsig ErrorBoundary Usage', () => {
     expectSingleError('_store.getConfig');
   });
 
-  it.skip('recovers from errors and returns default layer value', async () => {
+  it('recovers from errors and returns default layer value', async () => {
     const result = client.getLayer(user, 'a_layer');
     expect(result instanceof Layer).toBe(true);
     expectSingleError('_store.getLayer');
