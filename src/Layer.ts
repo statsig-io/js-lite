@@ -13,7 +13,7 @@ export default class Layer {
   readonly _ruleID: string;
   readonly _secondaryExposures: Record<string, string>[];
   readonly _undelegatedSecondaryExposures: Record<string, string>[];
-  readonly _allocatedExperimentName: string;
+  readonly _allocatedExperimentName: string | null;
   readonly _explicitParameters: string[];
   readonly _evaluationDetails: EvaluationDetails;
   readonly _logParameterFunction: LogParameterFunction | null;
@@ -27,7 +27,7 @@ export default class Layer {
     logParameterFunction: LogParameterFunction | null = null,
     secondaryExposures: Record<string, string>[] = [],
     undelegatedSecondaryExposures: Record<string, string>[] = [],
-    allocatedExperimentName: string = '',
+    allocatedExperimentName: string | null = null,
     explicitParameters: string[] = [],
   ) {
     this._user = user;
@@ -51,7 +51,7 @@ export default class Layer {
     logParameterFunction: LogParameterFunction | null = null,
     secondaryExposures: Record<string, string>[] = [],
     undelegatedSecondaryExposures: Record<string, string>[] = [],
-    allocatedExperimentName: string = '',
+    allocatedExperimentName: string | null = null,
     explicitParameters: string[] = [],
   ): Layer {
     return new Layer(
@@ -73,10 +73,13 @@ export default class Layer {
     defaultValue: T,
     typeGuard?: (value: unknown) => value is T,
   ): T {
+    const def = defaultValue ?? null;
     const val = this._value[key];
 
     if (val == null) {
-      return defaultValue;
+
+    // @ts-ignore
+      return def;
     }
 
     const logAndReturn = () => {
@@ -85,21 +88,23 @@ export default class Layer {
     };
 
     if (typeGuard) {
-      return typeGuard(val) ? logAndReturn() : defaultValue;
+
+    // @ts-ignore
+      return typeGuard(val) ? logAndReturn() : def;
     }
 
-    if (defaultValue == null) {
+    if (def == null) {
       return logAndReturn();
     }
 
     if (
-      typeof val === typeof defaultValue &&
-      Array.isArray(defaultValue) === Array.isArray(val)
+      typeof val === typeof def &&
+      Array.isArray(def) === Array.isArray(val)
     ) {
       return logAndReturn();
     }
 
-    return defaultValue;
+    return def;
   }
 
   public getValue(

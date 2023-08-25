@@ -4,22 +4,10 @@
 
 import Statsig from '../index';
 import { EvaluationReason } from '../EvaluationMetadata';
-import { getHashValue } from '../utils/Hashing';
-import { StatsigInitializeResponse } from './index.test';
+import * as TestData from './basic_config_spec.json';
 
-type Indexable = {
-  [key: string]: (_arg0: string, _arg1: any) => any;
-};
-
-describe.skip('Layer Exposure Logging', () => {
-  const response: StatsigInitializeResponse = {
-    feature_gates: {},
-    dynamic_configs: {},
-    layer_configs: {},
-    sdkParams: {},
-    has_updates: true,
-    time: 1647984444418,
-  };
+describe('Layer Exposure Logging', () => {
+  let response = TestData;
   var logs: {
     events: Record<string, any>[];
   };
@@ -34,7 +22,7 @@ describe.skip('Layer Exposure Logging', () => {
 
       return Promise.resolve({
         ok: true,
-        text: () => Promise.resolve(JSON.stringify(response)),
+        text: () => Promise.resolve(JSON.stringify(TestData)),
       });
     });
   });
@@ -43,18 +31,18 @@ describe.skip('Layer Exposure Logging', () => {
     logs = {
       events: [],
     };
-    response.layer_configs = {};
+    response = TestData;
   });
 
   it('does not log on invalid types', async () => {
     // @ts-ignore
-    response.layer_configs[getHashValue('layer')] = {
-      value: { an_int: 99 },
+    response.layer_configs[0].defaultValue = {
+       an_int: 99,
     };
 
     await Statsig.initialize('client-key');
 
-    let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
+    let layer = Statsig.getLayer(null, 'layer');
     layer.get('an_int', '');
     Statsig.shutdown();
 
@@ -67,8 +55,8 @@ describe.skip('Layer Exposure Logging', () => {
     it('does not log a non-existent key', async () => {
       await Statsig.initialize('client-key', null);
 
-      let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
-      layer[method]('an_int', 0);
+      let layer = Statsig.getLayer({userID: 'tore'}, 'layer');
+      layer[method]('a_nonexistant_key', 0);
       Statsig.shutdown();
 
       expect(logs).toEqual({
@@ -77,56 +65,35 @@ describe.skip('Layer Exposure Logging', () => {
     });
 
     it('logs layers without an allocated experiment correctly', async () => {
-      response.layer_configs[getHashValue('layer')] = {
-        value: { an_int: 99 },
-        rule_id: 'default',
-        secondary_exposures: [{ gate: 'secondary_exp' }],
-        undelegated_secondary_exposures: [
-          { gate: 'undelegated_secondary_exp' },
-        ],
-        allocated_experiment_name: '',
-        explicit_parameters: [],
-      };
-
       await Statsig.initialize('client-key');
 
-      let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
-      layer[method]('an_int', 0);
+      let layer = Statsig.getLayer({userID: 'xin'}, 'layer');
+      expect(layer[method]('an_int', 0)).toEqual(8);
       Statsig.shutdown();
 
       expect(logs['events'].length).toEqual(1);
 
       expect(logs['events'][0]).toEqual(
         expect.objectContaining({
+          eventName: "statsig::layer_exposure",
           metadata: {
             config: 'layer',
-            ruleID: 'default',
-            allocatedExperiment: '',
+            ruleID: '2B3nzQ8DTDCxlSf0YOaTan',
+            allocatedExperiment: 'the_allocated_experiment',
             parameterName: 'an_int',
-            isExplicitParameter: 'false',
+            isExplicitParameter: 'true',
             reason: EvaluationReason.Network,
             time: expect.any(Number),
           },
-          secondaryExposures: [{ gate: 'undelegated_secondary_exp' }],
+          secondaryExposures: [],
         }),
       );
     });
 
     it('logs explicit and implicit parameters correctly', async () => {
-      response.layer_configs[getHashValue('layer')] = {
-        value: { an_int: 99, a_string: 'value' },
-        rule_id: 'default',
-        secondary_exposures: [{ gate: 'secondary_exp' }],
-        undelegated_secondary_exposures: [
-          { gate: 'undelegated_secondary_exp' },
-        ],
-        allocated_experiment_name: 'the_allocated_experiment',
-        explicit_parameters: ['an_int'],
-      };
-
       await Statsig.initialize('client-key');
 
-      let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
+      let layer = Statsig.getLayer({userID: 'xin', email: 'support@statsig.com'}, 'layer');
       layer[method]('an_int', 0);
       layer[method]('a_string', '');
       Statsig.shutdown();
@@ -135,16 +102,20 @@ describe.skip('Layer Exposure Logging', () => {
 
       expect(logs['events'][0]).toEqual(
         expect.objectContaining({
+          user: {
+            userID: 'xin',
+            email: 'support@statsig.com',
+          },
           metadata: {
             config: 'layer',
-            ruleID: 'default',
+            ruleID: '2B3nzQ8DTDCxlSf0YOaTan',
             allocatedExperiment: 'the_allocated_experiment',
             parameterName: 'an_int',
             isExplicitParameter: 'true',
             reason: EvaluationReason.Network,
             time: expect.any(Number),
           },
-          secondaryExposures: [{ gate: 'secondary_exp' }],
+          secondaryExposures: [],
         }),
       );
 
@@ -152,34 +123,33 @@ describe.skip('Layer Exposure Logging', () => {
         expect.objectContaining({
           metadata: {
             config: 'layer',
-            ruleID: 'default',
-            allocatedExperiment: '',
+            ruleID: '2B3nzQ8DTDCxlSf0YOaTan',
+            allocatedExperiment: null,
             parameterName: 'a_string',
             isExplicitParameter: 'false',
             reason: EvaluationReason.Network,
             time: expect.any(Number),
           },
-          secondaryExposures: [{ gate: 'undelegated_secondary_exp' }],
+          secondaryExposures: [],
         }),
       );
     });
 
     it('logs different object types correctly', async () => {
-      response.layer_configs[getHashValue('layer')] = {
-        value: {
-          a_bool: true,
-          an_int: 99,
-          a_double: 1.23,
-          a_long: 1,
-          a_string: 'value',
-          an_array: ['a', 'b'],
-          an_object: { key: 'value' },
-        },
+      response.layer_configs[0].defaultValue = {
+        // @ts-ignore
+        a_bool: true,
+        an_int: 99,
+        a_double: 1.23,
+        a_long: 1,
+        a_string: 'value',
+        an_array: ['a', 'b'],
+        an_object: { key: 'value' },
       };
 
       await Statsig.initialize('client-key', null);
 
-      let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
+      let layer = Statsig.getLayer({userID: "tore"}, 'layer');
       layer[method]('a_bool', false);
       layer[method]('an_int', 0);
       layer[method]('a_double', 0.0);
@@ -209,49 +179,16 @@ describe.skip('Layer Exposure Logging', () => {
     });
 
     it('does not log when shutdown', async () => {
-      response.layer_configs[getHashValue('layer')] = {
-        value: {
-          a_bool: true,
-        },
-      };
-
       await Statsig.initialize('client-key', null);
 
-      let layer = Statsig.getLayer(null, 'layer') as unknown as Indexable;
+      let layer = Statsig.getLayer({userID: "xin"}, 'layer');
       Statsig.shutdown();
 
-      layer[method]('a_bool', false);
+      layer[method]('an_int', 77);
 
       expect(logs).toEqual({
         events: [],
       });
-    });
-
-    it('logs the correct name and user values', async () => {
-      response.layer_configs[getHashValue('layer')] = {
-        value: { an_int: 99 },
-      };
-
-      await Statsig.initialize('client-key');
-
-      let layer = Statsig.getLayer({
-        userID: 'dloomb',
-        email: 'dan@loomb.io',
-      }, 'layer') as unknown as Indexable;
-      layer[method]('an_int', 0);
-      Statsig.shutdown();
-
-      expect(logs['events'].length).toEqual(1);
-
-      expect(logs['events'][0]).toEqual(
-        expect.objectContaining({
-          eventName: 'statsig::layer_exposure',
-          user: {
-            userID: 'dloomb',
-            email: 'dan@loomb.io',
-          },
-        }),
-      );
     });
   });
 });

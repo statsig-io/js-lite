@@ -3,7 +3,7 @@
  */
 
 import Statsig from '..';
-import { getHashValue } from '../utils/Hashing';
+import * as TestData from './basic_config_spec.json';
 
 describe('ExposureLogging', () => {
   let events: {
@@ -25,29 +25,7 @@ describe('ExposureLogging', () => {
         ok: true,
         text: () =>
           Promise.resolve(
-            JSON.stringify({
-              feature_gates: {
-                [getHashValue('a_gate')]: {
-                  value: true,
-                },
-              },
-              dynamic_configs: {
-                [getHashValue('an_experiment')]: {
-                  value: { a_bool: true },
-                },
-                [getHashValue('a_config')]: {
-                  value: { a_bool: true },
-                },
-              },
-              layer_configs: {
-                [getHashValue('a_layer')]: {
-                  value: { a_bool: true },
-                },
-              },
-              sdkParams: {},
-              has_updates: true,
-              time: 1647984444418,
-            }),
+            JSON.stringify(TestData),
           ),
       });
     });
@@ -94,12 +72,11 @@ describe('ExposureLogging', () => {
       expect(events[0].eventName).toEqual('statsig::config_exposure');
     });
 
-    // TODO @tore
-    it.skip('logs layer exposures', async () => {
-      const layer = Statsig.getLayer(null, 'a_layer');
-      layer.get('a_bool', false);
+    it('logs layer exposures', async () => {
+      const layer = Statsig.getLayer(null, 'layer');
+      layer.get('a_string', "default");
       expect(events.length).toBe(1);
-      expect(events[0].metadata.config).toEqual('a_layer');
+      expect(events[0].metadata.config).toEqual('layer');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
       expect(events[0].eventName).toEqual('statsig::layer_exposure');
     });

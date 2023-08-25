@@ -168,7 +168,7 @@ export default class StatsigLogger {
     configName: string,
     ruleID: string,
     secondaryExposures: Record<string, string>[],
-    allocatedExperiment: string,
+    allocatedExperiment: string | null,
     parameterName: string,
     isExplicitParameter: boolean,
     details: EvaluationDetails,

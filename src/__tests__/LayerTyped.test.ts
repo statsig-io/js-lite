@@ -1,7 +1,7 @@
 import Layer from '../Layer';
 import { EvaluationReason } from '../EvaluationMetadata';
 
-describe.skip('Verify behavior of Layer', () => {
+describe('Verify behavior of Layer', () => {
   const testLayer = Layer._create(
     {},
     'test_layer',
@@ -113,6 +113,6 @@ describe.skip('Verify behavior of Layer', () => {
   test('Test optional type guard default given undefined', () => {
     expect(
       testLayer.get('object', undefined, isOtherTestObject),
-    ).toBeUndefined();
+    ).toBeNull();
   });
 });

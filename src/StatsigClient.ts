@@ -484,7 +484,18 @@ export default class StatsigClient {
       );
     }
     const result = this._store.getLayer(user, layerName);
-    return Layer._create(user, layerName, result.json_value, result.rule_id, result.evaluation_details, logParameterFunction, result.secondary_exposures);
+    return Layer._create(
+      user,
+      layerName,
+      result.json_value,
+      result.rule_id,
+      result.evaluation_details,
+      logParameterFunction,
+      result.secondary_exposures,
+      result.undelegated_secondary_exposures,
+      result.config_delegate,
+      result.explicit_parameters ?? []
+    );
   }
 
   private _logLayerParameterExposureForLayer = (
@@ -492,8 +503,7 @@ export default class StatsigClient {
     parameterName: string,
     isManualExposure: boolean = false,
   ) => {
-    console.log('_logLayerParameterExposureForLayer');
-    let allocatedExperiment = '';
+    let allocatedExperiment = null;
     let exposures = layer._undelegatedSecondaryExposures;
     const isExplicit = layer._explicitParameters.includes(parameterName);
     if (isExplicit) {

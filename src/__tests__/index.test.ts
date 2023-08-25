@@ -200,6 +200,7 @@ describe('Verify behavior of top level index functions', () => {
         expect(config?.value).toStrictEqual({
           bool: true,
           number: 2,
+          double: 3.1,
           string: 'string',
           object: {
             key: 'value',
@@ -246,6 +247,7 @@ describe('Verify behavior of top level index functions', () => {
         expect(exp?.value).toStrictEqual({
           bool: true,
           number: 2,
+          double: 3.1,
           string: 'string',
           object: {
             key: 'value',
@@ -292,6 +294,7 @@ describe('Verify behavior of top level index functions', () => {
     expect(config?.value).toStrictEqual({
       bool: true,
       number: 2,
+      double: 3.1,
       string: 'string',
       object: {
         key: 'value',
