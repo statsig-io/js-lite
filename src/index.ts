@@ -31,32 +31,39 @@ export default class Statsig {
   // Gate
 
   public static checkGate(
-    user: StatsigUser | null,
+    user: StatsigUser,
     gateName: string,
   ): boolean {
     return Statsig._getClientX().checkGate(user, gateName);
   }
 
-  public static manuallyLogGateExposure(user: StatsigUser | null, gateName: string) {
+  public static checkGateWithExposureLoggingDisabled(
+    user: StatsigUser,
+    gateName: string,
+  ): boolean {
+    return Statsig._getClientX().checkGateWithExposureLoggingDisabled(user, gateName);
+  }
+
+  public static manuallyLogGateExposure(user: StatsigUser, gateName: string) {
     Statsig._getClientX().logGateExposure(user, gateName);
   }
 
   // Config
-  public static getConfig(user: StatsigUser | null, configName: string): DynamicConfig {
+  public static getConfig(user: StatsigUser, configName: string): DynamicConfig {
     return Statsig._getClientX().getConfig(user, configName);
   }
 
-  public static manuallyLogConfigExposure(user: StatsigUser | null, configName: string) {
+  public static manuallyLogConfigExposure(user: StatsigUser, configName: string) {
     Statsig._getClientX().logConfigExposure(user, configName);
   }
 
   // Experiment
-  public static getExperiment(user: StatsigUser | null, experimentName: string): DynamicConfig {
+  public static getExperiment(user: StatsigUser, experimentName: string): DynamicConfig {
     return Statsig._getClientX().getExperiment(user, experimentName);
   }
 
   public static getExperimentWithExposureLoggingDisabled(
-    user: StatsigUser | null,
+    user: StatsigUser,
     experimentName: string,
   ): DynamicConfig {
     return Statsig._getClientX().getExperimentWithExposureLoggingDisabled(
@@ -65,21 +72,21 @@ export default class Statsig {
     );
   }
 
-  public static manuallyLogExperimentExposure(user: StatsigUser | null,configName: string) {
+  public static manuallyLogExperimentExposure(user: StatsigUser,configName: string) {
     Statsig._getClientX().logExperimentExposure(user, configName);
   }
 
   // Layer
-  public static getLayer(user: StatsigUser | null, layerName: string): Layer {
+  public static getLayer(user: StatsigUser, layerName: string): Layer {
     return Statsig._getClientX().getLayer(user, layerName);
   }
 
-  public static getLayerWithExposureLoggingDisabled(user: StatsigUser | null, layerName: string): Layer {
+  public static getLayerWithExposureLoggingDisabled(user: StatsigUser, layerName: string): Layer {
     return Statsig._getClientX().getLayerWithExposureLoggingDisabled(user, layerName);
   }
 
   public static manuallyLogLayerParameterExposure(
-    user: StatsigUser | null,
+    user: StatsigUser,
     layerName: string,
     parameterName: string,
   ) {
@@ -87,7 +94,7 @@ export default class Statsig {
   }
 
   public static logEvent(
-    user: StatsigUser | null,
+    user: StatsigUser,
     eventName: string,
     value: string | number | null = null,
     metadata: Record<string, string> | null = null,

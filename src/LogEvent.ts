@@ -3,7 +3,7 @@ import { StatsigMetadata } from './StatsigIdentity';
 
 export type LogEvent = {
   eventName: string;
-  user: StatsigUser | null;
+  user: StatsigUser;
   value: string | number | null;
   metadata: object | null;
   time: number;
@@ -13,7 +13,7 @@ export type LogEvent = {
 
 export default function makeLogEvent(
   eventName: string,
-  user: StatsigUser | null,
+  user: StatsigUser,
   statsigMetadata: StatsigMetadata,
   value: string | number | null = null,
   metadata: object | null = null,

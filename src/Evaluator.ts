@@ -69,23 +69,23 @@ export default class Evaluator {
     return true;
   }
 
-  public checkGate(user: StatsigUser | null, gateName: string): ConfigEvaluation {
+  public checkGate(user: StatsigUser, gateName: string): ConfigEvaluation {
     const gateDef = this.featureGates[gateName];
     return this._evalConfigSpec(user, gateDef);
   }
 
-  public getConfig(user: StatsigUser | null, configName: string): ConfigEvaluation {
+  public getConfig(user: StatsigUser, configName: string): ConfigEvaluation {
     const configDef = this.dynamicConfigs[configName];
     return this._evalConfigSpec(user, configDef);
   }
 
-  public getLayer(user: StatsigUser | null, layerName: string): ConfigEvaluation {
+  public getLayer(user: StatsigUser, layerName: string): ConfigEvaluation {
     const layer = this.layerConfigs[layerName];
     const res = this._evalConfigSpec(user, layer);
     return res;
   }
 
-  private _evalConfigSpec(user: StatsigUser | null, config: ConfigSpec | null): ConfigEvaluation {
+  private _evalConfigSpec(user: StatsigUser, config: ConfigSpec | null): ConfigEvaluation {
     if (!config) {
       return new ConfigEvaluation(false).withEvaluationReason(
         EvaluationReason.Unrecognized,
@@ -98,7 +98,7 @@ export default class Evaluator {
     );
   }
 
-  private _eval(user: StatsigUser | null, config: ConfigSpec): ConfigEvaluation {
+  private _eval(user: StatsigUser, config: ConfigSpec): ConfigEvaluation {
     if (!config.enabled) {
       return new ConfigEvaluation(
         false,
@@ -156,7 +156,7 @@ export default class Evaluator {
   }
 
   private _evalDelegate(
-    user: StatsigUser | null,
+    user: StatsigUser,
     rule: ConfigRule,
     exposures: Record<string, string>[],
   ) {
@@ -179,7 +179,7 @@ export default class Evaluator {
     return delegatedResult;
   }
 
-  private _evalPassPercent(user: StatsigUser | null, rule: ConfigRule, config: ConfigSpec) {
+  private _evalPassPercent(user: StatsigUser, rule: ConfigRule, config: ConfigSpec) {
     if (rule.passPercentage === 100) {
       return true;
     } else if (rule.passPercentage === 0) {
@@ -197,7 +197,7 @@ export default class Evaluator {
     );
   }
 
-  private _getUnitID(user: StatsigUser | null, idType: string) {
+  private _getUnitID(user: StatsigUser, idType: string) {
     if (typeof idType === 'string' && idType.toLowerCase() !== 'userid') {
       return (
         user?.customIDs?.[idType] ?? user?.customIDs?.[idType.toLowerCase()]
@@ -206,7 +206,7 @@ export default class Evaluator {
     return user?.userID;
   }
 
-  private _evalRule(user: StatsigUser | null, rule: ConfigRule) {
+  private _evalRule(user: StatsigUser, rule: ConfigRule) {
     let secondaryExposures: Record<string, string>[] = [];
     let pass = true;
 
@@ -237,7 +237,7 @@ export default class Evaluator {
   }
 
   private _evalCondition(
-    user: StatsigUser | null,
+    user: StatsigUser,
     condition: ConfigCondition,
   ): { passes: boolean; fetchFromServer?: boolean; exposures?: any[] } {
     let value = null;
@@ -489,7 +489,7 @@ function computeUserHash(userHash: string) {
   return bigInt;
 }
 
-function getFromUser(user: StatsigUser | null, field: string): any | null {
+function getFromUser(user: StatsigUser, field: string): any | null {
   if (typeof user !== 'object' || user == null) {
     return null;
   }

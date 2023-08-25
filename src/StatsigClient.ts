@@ -150,12 +150,12 @@ export default class StatsigClient {
    * @returns {boolean} - value of a gate for the user. Gates are "off" (return false) by default
    * @throws Error if initialize() is not called first, or gateName is not a string
    */
-  public checkGate(user: StatsigUser | null, gateName: string): boolean {
+  public checkGate(user: StatsigUser, gateName: string): boolean {
     return this._checkGateImpl(user, gateName, 'checkGate');
   }
 
   public checkGateWithExposureLoggingDisabled(
-    user: StatsigUser | null,
+    user: StatsigUser,
     gateName: string,
   ): boolean {
     return this._checkGateImpl(
@@ -166,7 +166,7 @@ export default class StatsigClient {
   }
 
   public logGateExposure(
-    user: StatsigUser | null,
+    user: StatsigUser,
     gateName: string,
   ) {
     this._errorBoundary._swallow('logGateExposure', () => {
@@ -181,14 +181,14 @@ export default class StatsigClient {
    * @throws Error if initialize() is not called first, or configName is not a string
    */
   public getConfig(
-    user: StatsigUser | null,
+    user: StatsigUser,
     configName: string,
   ): DynamicConfig {
     return this._getConfigImpl(user, configName, 'getConfig');
   }
 
   public getConfigWithExposureLoggingDisabled(
-    user: StatsigUser | null,
+    user: StatsigUser,
     configName: string,
   ): DynamicConfig {
     return this._getConfigImpl(
@@ -198,36 +198,36 @@ export default class StatsigClient {
     );
   }
 
-  public logConfigExposure(user: StatsigUser | null, configName: string) {
+  public logConfigExposure(user: StatsigUser, configName: string) {
     this._errorBoundary._swallow('logConfigExposure', () => {
       this._logConfigExposureImpl(user, configName);
     });
   }
 
-  public getExperiment(user: StatsigUser | null, experimentName: string): DynamicConfig {
+  public getExperiment(user: StatsigUser, experimentName: string): DynamicConfig {
     return this.getConfig(user, experimentName);
   }
 
   public getExperimentWithExposureLoggingDisabled(
-    user: StatsigUser | null,
+    user: StatsigUser,
     experimentName: string,
   ): DynamicConfig {
     return this.getConfigWithExposureLoggingDisabled(user, experimentName);
   }
 
-  public logExperimentExposure(user: StatsigUser | null, experimentName: string) {
+  public logExperimentExposure(user: StatsigUser, experimentName: string) {
     this.logConfigExposure(user, experimentName);
   }
 
-  public getLayer(user: StatsigUser | null, layerName: string): Layer {
+  public getLayer(user: StatsigUser, layerName: string): Layer {
     return this._getLayerImpl(user, layerName, 'getLayer');
   }
 
-  public getLayerWithExposureLoggingDisabled(user: StatsigUser | null, layerName: string): Layer {
+  public getLayerWithExposureLoggingDisabled(user: StatsigUser, layerName: string): Layer {
     return this._getLayerImpl(user, layerName, 'getLayerWithExposureLoggingDisabled');
   }
 
-  public logLayerParameterExposure(user: StatsigUser | null, layerName: string, parameterName: string) {
+  public logLayerParameterExposure(user: StatsigUser, layerName: string, parameterName: string) {
     this._errorBoundary._swallow('logLayerParameterExposure', () => {
       const layer = this._getLayerFromStore(user, null, layerName);
       this._logLayerParameterExposureForLayer(layer, parameterName, true);
@@ -235,7 +235,7 @@ export default class StatsigClient {
   }
 
   public logEvent(
-    user: StatsigUser | null,
+    user: StatsigUser,
     eventName: string,
     value: string | number | null = null,
     metadata: Record<string, string> | null = null,
@@ -296,10 +296,10 @@ export default class StatsigClient {
     });
   }
 
-  private _normalizeUser(user: StatsigUser | null): StatsigUser {
-    let userCopy: Record<string, unknown> = {};
+  private _normalizeUser(user: StatsigUser): StatsigUser {
+    let userCopy: StatsigUser = {};
     try {
-      userCopy = JSON.parse(JSON.stringify(user));
+      userCopy = JSON.parse(JSON.stringify(user)) as StatsigUser;
     } catch (error) {
       throw new StatsigInvalidArgumentError(
         'User object must be convertable to JSON string.',
@@ -308,6 +308,12 @@ export default class StatsigClient {
 
     if (this._options.environment != null) {
       userCopy = { ...userCopy, statsigEnvironment: this._options.environment };
+    }
+    if (userCopy.customIDs == null) {
+      userCopy.customIDs = {};
+    }
+    if (userCopy.customIDs.stableID == null) {
+      userCopy.customIDs.stableID = this.getStableID();
     }
     return userCopy as StatsigUser;
   }
@@ -333,7 +339,7 @@ export default class StatsigClient {
   }
 
   private _checkGateImpl(
-    user: StatsigUser | null,
+    user: StatsigUser,
     gateName: string,
     callsite: 'checkGate' | 'checkGateWithExposureLoggingDisabled',
   ) {
@@ -350,7 +356,7 @@ export default class StatsigClient {
     );
   }
 
-  private _getGateFromStore(user: StatsigUser | null, gateName: string): ConfigEvaluation {
+  private _getGateFromStore(user: StatsigUser, gateName: string): ConfigEvaluation {
     this._ensureStoreLoaded();
     if (typeof gateName !== 'string' || gateName.length === 0) {
       throw new StatsigInvalidArgumentError(
@@ -361,7 +367,7 @@ export default class StatsigClient {
   }
 
   private _logGateExposureImpl(
-    user: StatsigUser | null,
+    user: StatsigUser,
     gateName: string,
     fetchResult?: ConfigEvaluation,
   ) {
@@ -380,7 +386,7 @@ export default class StatsigClient {
   }
 
   private _getConfigImpl(
-    user: StatsigUser | null,
+    user: StatsigUser,
     configName: string,
     callsite: 'getConfig' | 'getConfigWithExposureLoggingDisabled',
   ): DynamicConfig {
@@ -397,7 +403,7 @@ export default class StatsigClient {
     );
   }
 
-  private _getConfigFromStore(user: StatsigUser | null, configName: string): DynamicConfig {
+  private _getConfigFromStore(user: StatsigUser, configName: string): DynamicConfig {
     this._ensureStoreLoaded();
     if (typeof configName !== 'string' || configName.length === 0) {
       throw new StatsigInvalidArgumentError(
@@ -416,7 +422,7 @@ export default class StatsigClient {
     );
   }
 
-  private _logConfigExposureImpl(user: StatsigUser | null, configName: string, config?: DynamicConfig) {
+  private _logConfigExposureImpl(user: StatsigUser, configName: string, config?: DynamicConfig) {
     const isManualExposure = !config;
     const localConfig = config ?? this._getConfigFromStore(user, configName);
 
@@ -431,7 +437,7 @@ export default class StatsigClient {
   }
 
   private _makeOnConfigDefaultValueFallback(
-    user: StatsigUser | null,
+    user: StatsigUser,
   ): OnDefaultValueFallback {
     return (config, parameter, defaultValueType, valueType) => {
       if (!this._initCalled) {
@@ -454,7 +460,7 @@ export default class StatsigClient {
   }
 
   private _getLayerImpl(
-    user: StatsigUser | null,
+    user: StatsigUser,
     layerName: string,
     callsite: 'getLayer' | 'getLayerWithExposureLoggingDisabled',
   ) {
@@ -473,7 +479,7 @@ export default class StatsigClient {
   }
 
   private _getLayerFromStore(
-    user: StatsigUser | null,
+    user: StatsigUser,
     logParameterFunction: LogParameterFunction | null,
     layerName: string,
   ): Layer {
