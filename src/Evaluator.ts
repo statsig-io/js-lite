@@ -5,6 +5,7 @@ import { StatsigUnsupportedEvaluationError } from './Errors';
 import { EvaluationReason } from './EvaluationMetadata';
 import { StatsigUser } from './StatsigUser';
 import { getHashValue } from './utils/Hashing';
+import { sha256 } from 'js-sha256';
 
 const CONDITION_SEGMENT_COUNT = 10 * 1000;
 const USER_BUCKET_COUNT = 1000;
@@ -484,7 +485,7 @@ function stringToBytes(str: String) {
 }
 
 function computeUserHash(userHash: string) {
-  const buffer = getHashValue(userHash);
+  const buffer = sha256(userHash);
   // @ts-ignore
   const view = new DataView(stringToBytes(buffer));
   const bigInt = view.getBigUint64(0, false);

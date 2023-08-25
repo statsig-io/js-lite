@@ -32,7 +32,12 @@
       "enabled": true,
       "defaultValue": {
         "an_int": 99,
-        "a_string": "value"
+        "a_string": "value",
+        "a_double": 3.1,
+        "a_long": 10000000000000,
+        "a_bool": true,
+        "an_array": [],
+        "an_object": {}
       },
       "rules": [
         {
@@ -555,7 +560,12 @@
           ],
           "returnValue": {
             "an_int": 99,
-            "a_string": "value"
+            "a_string": "value",
+            "a_double": 3.1,
+            "a_long": 10000000000000,
+            "a_bool": true,
+            "an_array": [],
+            "an_object": {}
           },
           "id": "layerAssignment",
           "salt": "",
@@ -581,7 +591,12 @@
           ],
           "returnValue": {
             "an_int": 12,
-            "a_string": "value"
+            "a_string": "value",
+            "a_double": 3.1,
+            "a_long": 10000000000000,
+            "a_bool": true,
+            "an_array": [],
+            "an_object": {}
           },
           "id": "2B3nzOtBrlt32sH5nGffRl",
           "salt": "2B3nzOtBrlt32sH5nGffRl",
@@ -608,7 +623,12 @@
           ],
           "returnValue": {
             "an_int": 8,
-            "a_string": "value"
+            "a_string": "value",
+            "a_double": 3.1,
+            "a_long": 10000000000000,
+            "a_bool": true,
+            "an_array": [],
+            "an_object": {}
           },
           "id": "2B3nzQ8DTDCxlSf0YOaTan",
           "salt": "2B3nzQ8DTDCxlSf0YOaTan",
@@ -678,7 +698,12 @@
       "enabled": true,
       "defaultValue": {
         "an_int": 99,
-        "a_string": "value"
+        "a_string": "value",
+        "a_double": 3.1,
+        "a_long": 10000000000000,
+        "a_bool": true,
+        "an_array": [],
+        "an_object": {}
       },
       "rules": [
         {
@@ -1201,7 +1226,12 @@
           ],
           "returnValue": {
             "an_int": 99,
-            "a_string": "value"
+            "a_string": "value",
+            "a_double": 3.1,
+            "a_long": 10000000000000,
+            "a_bool": true,
+            "an_array": [],
+            "an_object": {}
           },
           "id": "experimentAssignment",
           "salt": "",
@@ -1216,7 +1246,7 @@
     }
   ],
   "has_updates": true,
-  "time": 1692981470210,
+  "time": 1693005117350,
   "company_id": "2NhNJP8mpzRpYwFNw5Y0u8",
   "diagnostics": {
     "initialize": 1000,
