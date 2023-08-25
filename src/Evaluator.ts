@@ -12,17 +12,25 @@ export default class Evaluator {
   private featureGates: Record<string, ConfigSpec>;
   private dynamicConfigs: Record<string, ConfigSpec>;
   private layerConfigs: Record<string, ConfigSpec>;
+  private expToLayer: Record<string, string>;
 
   public constructor() {
     this.featureGates = {};
     this.dynamicConfigs = {};
     this.layerConfigs = {};
+    this.expToLayer = {};
   }
+
+  public getExperimentLayer(experimentName: string): string | null {
+    return this.expToLayer[experimentName] ?? null;
+  }
+
 
   public setConfigSpecs(
     featureGates: Array<Record<string, unknown>>,
     dynamicConfigs: Array<Record<string, unknown>>,
     layerConfigs: Array<Record<string, unknown>>,
+    layerMapping: Record<string, Array<String>>,
   ) {
     let updatedGates: Record<string, ConfigSpec> = {};
     let updatedConfigs: Record<string, ConfigSpec> = {};
@@ -58,13 +66,18 @@ export default class Evaluator {
         const config = new ConfigSpec(layerJSON);
         updatedLayers[config.name] = config;
       } catch (e) {
+        console.error(e);
         return false;
       }
     }
 
+    const updatedExpToLayer: Record<string, string> =
+      this._reverseLayerExperimentMapping(layerMapping);
+    console.log(updatedLayers);
     this.featureGates = updatedGates;
     this.dynamicConfigs = updatedConfigs;
     this.layerConfigs = updatedLayers;
+    this.expToLayer = updatedExpToLayer;
     return true;
   }
 
@@ -74,11 +87,19 @@ export default class Evaluator {
   }
 
   public getConfig(user: StatsigUser | null, configName: string): ConfigEvaluation {
-    const gateDef = this.dynamicConfigs[configName];
-    return this._evalConfigSpec(user, gateDef);
+    const configDef = this.dynamicConfigs[configName];
+    return this._evalConfigSpec(user, configDef);
   }
 
-  _evalConfigSpec(user: StatsigUser | null, config: ConfigSpec | null): ConfigEvaluation {
+  public getLayer(user: StatsigUser | null, layerName: string): ConfigEvaluation {
+    const layer = this.layerConfigs[layerName];
+    console.log(layer);
+    const res = this._evalConfigSpec(user, layer);
+    console.log(res);
+    return res;
+  }
+
+  private _evalConfigSpec(user: StatsigUser | null, config: ConfigSpec | null): ConfigEvaluation {
     if (!config) {
       return new ConfigEvaluation(false).withEvaluationReason(
         EvaluationReason.Unrecognized,
@@ -91,7 +112,7 @@ export default class Evaluator {
     );
   }
 
-  _eval(user: StatsigUser | null, config: ConfigSpec): ConfigEvaluation {
+  private _eval(user: StatsigUser | null, config: ConfigSpec): ConfigEvaluation {
     if (!config.enabled) {
       return new ConfigEvaluation(
         false,
@@ -114,6 +135,15 @@ export default class Evaluator {
       );
 
       if (ruleResult.value === true) {
+        const delegatedResult = this._evalDelegate(
+          user,
+          rule,
+          secondary_exposures,
+        );
+        if (delegatedResult) {
+          return delegatedResult;
+        }
+
         const pass = this._evalPassPercent(user, rule, config);
         const evaluation = new ConfigEvaluation(
           pass,
@@ -125,7 +155,6 @@ export default class Evaluator {
           config.explicitParameters,
           ruleResult.config_delegate,
         );
-        evaluation.withGroupName(ruleResult.group_name);
         evaluation.setIsExperimentGroup(ruleResult.is_experiment_group);
         return evaluation;
       }
@@ -140,7 +169,31 @@ export default class Evaluator {
     );
   }
 
-  _evalPassPercent(user: StatsigUser | null, rule: ConfigRule, config: ConfigSpec) {
+  private _evalDelegate(
+    user: StatsigUser | null,
+    rule: ConfigRule,
+    exposures: Record<string, string>[],
+  ) {
+    if (rule.configDelegate == null) {
+      return null;
+    }
+    const config = this.dynamicConfigs[rule.configDelegate];
+    if (!config) {
+      return null;
+    }
+
+    const delegatedResult = this._eval(user, config);
+    delegatedResult.config_delegate = rule.configDelegate;
+    delegatedResult.undelegated_secondary_exposures = exposures;
+    delegatedResult.explicit_parameters = config.explicitParameters;
+    delegatedResult.secondary_exposures = exposures.concat(
+      delegatedResult.secondary_exposures,
+    );
+
+    return delegatedResult;
+  }
+
+  private _evalPassPercent(user: StatsigUser | null, rule: ConfigRule, config: ConfigSpec) {
     if (rule.passPercentage === 100) {
       return true;
     } else if (rule.passPercentage === 0) {
@@ -158,7 +211,7 @@ export default class Evaluator {
     );
   }
 
-  _getUnitID(user: StatsigUser | null, idType: string) {
+  private _getUnitID(user: StatsigUser | null, idType: string) {
     if (typeof idType === 'string' && idType.toLowerCase() !== 'userid') {
       return (
         user?.customIDs?.[idType] ?? user?.customIDs?.[idType.toLowerCase()]
@@ -167,7 +220,7 @@ export default class Evaluator {
     return user?.userID;
   }
 
-  _evalRule(user: StatsigUser | null, rule: ConfigRule) {
+  private _evalRule(user: StatsigUser | null, rule: ConfigRule) {
     let secondaryExposures: Record<string, string>[] = [];
     let pass = true;
 
@@ -197,7 +250,7 @@ export default class Evaluator {
     return evaluation;
   }
 
-  _evalCondition(
+  private _evalCondition(
     user: StatsigUser | null,
     condition: ConfigCondition,
   ): { passes: boolean; fetchFromServer?: boolean; exposures?: any[] } {
@@ -431,6 +484,26 @@ export default class Evaluator {
         return { passes: false, fetchFromServer: true };
     }
     return { passes: evalResult };
+  }
+
+  /**
+   * Returns a reverse mapping of layers to experiment (or vice versa)
+   */
+  private _reverseLayerExperimentMapping(
+    layersMapping: unknown,
+  ): Record<string, string> {
+    const reverseMapping: Record<string, string> = {};
+    if (layersMapping != null && typeof layersMapping === 'object') {
+      for (const [layerName, experiments] of Object.entries(
+        layersMapping,
+      )) {
+        for (const experimentName of experiments) {
+          // experiment -> layer is a 1:1 mapping
+          reverseMapping[experimentName] = layerName;
+        }
+      }
+    }
+    return reverseMapping;
   }
 }
 

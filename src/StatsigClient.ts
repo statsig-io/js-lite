@@ -483,8 +483,8 @@ export default class StatsigClient {
         'Must pass a valid string as the layerName.',
       );
     }
-    // TODO @tore
-    return Layer._create(user, layerName, {}, '', { reason: EvaluationReason.Unrecognized, time: Date.now() });//this._store.getLayer(logParameterFunction, layerName);
+    const result = this._store.getLayer(user, layerName);
+    return Layer._create(user, layerName, result.json_value, result.rule_id, result.evaluation_details, logParameterFunction, result.secondary_exposures);
   }
 
   private _logLayerParameterExposureForLayer = (
@@ -492,6 +492,7 @@ export default class StatsigClient {
     parameterName: string,
     isManualExposure: boolean = false,
   ) => {
+    console.log('_logLayerParameterExposureForLayer');
     let allocatedExperiment = '';
     let exposures = layer._undelegatedSecondaryExposures;
     const isExplicit = layer._explicitParameters.includes(parameterName);

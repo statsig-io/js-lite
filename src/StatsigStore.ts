@@ -67,11 +67,13 @@ export default class StatsigStore {
     const featureGates = jsonConfigs.feature_gates as Array<Record<string, unknown>>;
     const dynamicConfigs = jsonConfigs.dynamic_configs as Array<Record<string, unknown>>;
     const layerConfigs = jsonConfigs.layer_configs as Array<Record<string, unknown>>;
+    const layerMapping = jsonConfigs.layer_configs as Record<string, Array<String>>;
 
     const updated = this.evaluator.setConfigSpecs(
       featureGates,
       dynamicConfigs,
       layerConfigs,
+      layerMapping,
     );
     if (updated) {
       this.lcut = jsonConfigs.time ?? 0;
@@ -101,15 +103,12 @@ export default class StatsigStore {
     return this.evaluator.getConfig(user, expName);
   }
 
-  // public getLayer(
-  //   logParameterFunction: LogParameterFunction | null,
-  //   layerName: string,
-  //   keepDeviceValue: boolean,
-  // ): Layer {
-  //   // TODO-HACK @tore use evaluator
-
-  //   return {};
-  // }
+  public getLayer(
+    user: StatsigUser | null,
+    layerName: string,
+  ): ConfigEvaluation {
+    return this.evaluator.getLayer(user, layerName);
+  }
 
   public getGlobalEvaluationDetails(): EvaluationDetails {
     return {
