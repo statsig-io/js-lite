@@ -1,7 +1,8 @@
 
 import ConfigEvaluation from './ConfigEvaluation';
 import { ConfigCondition, ConfigRule, ConfigSpec } from './ConfigSpec';
-import { EvaluationDetails, EvaluationReason } from './EvaluationMetadata';
+import { StatsigUnsupportedEvaluationError } from './Errors';
+import { EvaluationReason } from './EvaluationMetadata';
 import { StatsigUser } from './StatsigUser';
 import { getHashValue } from './utils/Hashing';
 
@@ -87,7 +88,7 @@ export default class Evaluator {
 
   private _evalConfigSpec(user: StatsigUser, config: ConfigSpec | null): ConfigEvaluation {
     if (!config) {
-      return new ConfigEvaluation(false).withEvaluationReason(
+      return new ConfigEvaluation(false, '').withEvaluationReason(
         EvaluationReason.Unrecognized,
       );
     }
@@ -109,40 +110,52 @@ export default class Evaluator {
     }
 
     let secondary_exposures: Record<string, string>[] = [];
-    for (let i = 0; i < config.rules.length; i++) {
-      let rule = config.rules[i];
-      const ruleResult = this._evalRule(user, rule);
-      if (ruleResult.fetch_from_server) {
-        return ConfigEvaluation.fetchFromServer();
-      }
-
-      secondary_exposures = secondary_exposures.concat(
-        ruleResult.secondary_exposures,
-      );
-
-      if (ruleResult.value === true) {
-        const delegatedResult = this._evalDelegate(
-          user,
-          rule,
-          secondary_exposures,
+    try {
+      for (let i = 0; i < config.rules.length; i++) {
+        let rule = config.rules[i];
+        const ruleResult = this._evalRule(user, rule);
+  
+        secondary_exposures = secondary_exposures.concat(
+          ruleResult.secondary_exposures,
         );
-        if (delegatedResult) {
-          return delegatedResult;
+  
+        if (ruleResult.value === true) {
+          const delegatedResult = this._evalDelegate(
+            user,
+            rule,
+            secondary_exposures,
+          );
+          if (delegatedResult) {
+            return delegatedResult;
+          }
+  
+          const pass = this._evalPassPercent(user, rule, config);
+          const evaluation = new ConfigEvaluation(
+            pass,
+            ruleResult.rule_id,
+            secondary_exposures,
+            pass
+              ? ruleResult.json_value
+              : (config.defaultValue as Record<string, unknown>),
+            config.explicitParameters,
+            ruleResult.config_delegate,
+          );
+          evaluation.setIsExperimentGroup(ruleResult.is_experiment_group);
+          return evaluation;
         }
-
-        const pass = this._evalPassPercent(user, rule, config);
-        const evaluation = new ConfigEvaluation(
-          pass,
-          ruleResult.rule_id,
+      }
+    } catch(e: unknown) {
+      if (e instanceof StatsigUnsupportedEvaluationError) {
+        return new ConfigEvaluation(
+          false,
+          'default',
           secondary_exposures,
-          pass
-            ? ruleResult.json_value
-            : (config.defaultValue as Record<string, unknown>),
+          config.defaultValue as Record<string, unknown>,
           config.explicitParameters,
-          ruleResult.config_delegate,
-        );
-        evaluation.setIsExperimentGroup(ruleResult.is_experiment_group);
-        return evaluation;
+        ).withEvaluationReason(EvaluationReason.Unsupported)
+      } else {
+        // other error, let error boundary handle this
+        throw e;
       }
     }
 
@@ -212,14 +225,9 @@ export default class Evaluator {
 
     for (const condition of rule.conditions) {
       const result = this._evalCondition(user, condition);
-      if (result.fetchFromServer) {
-        return ConfigEvaluation.fetchFromServer();
-      }
-
       if (!result.passes) {
         pass = false;
       }
-
       if (result.exposures) {
         secondaryExposures = secondaryExposures.concat(result.exposures);
       }
@@ -250,9 +258,6 @@ export default class Evaluator {
       case 'fail_gate':
       case 'pass_gate':
         const gateResult = this._evalConfigSpec(user, this.featureGates[target as string]);
-        if (gateResult?.fetch_from_server) {
-          return { passes: false, fetchFromServer: true };
-        }
         value = gateResult?.value;
 
         let allExposures = gateResult?.secondary_exposures ?? [];
@@ -269,18 +274,15 @@ export default class Evaluator {
         };
       case 'ip_based':
         // this would apply to things like 'country', 'region', etc.
-        throw new Error('Unsupported condition: ' + condition.type);
-        break;
+        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
       case 'ua_based':
         // this would apply to things like 'os', 'browser', etc.
-        throw new Error('Unsupported condition: ' + condition.type);
-        break;
+        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
       case 'user_field':
         value = getFromUser(user, field);
         break;
       case 'environment_field':
-        // unsupported
-        throw new Error('Unsupported condition: ' + condition.type);
+        value = getFromEnvironment(user, field);
       case 'current_time':
         value = Date.now();
         break;
@@ -301,7 +303,7 @@ export default class Evaluator {
         }
         break;
       default:
-        return { passes: false, fetchFromServer: true };
+        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
     }
 
     const op = condition.operator?.toLowerCase();
@@ -465,9 +467,9 @@ export default class Evaluator {
         break;
       case 'in_segment_list':
       case 'not_in_segment_list':
-        throw new Error('Unsupported condition operator: ' + op);
+        throw new StatsigUnsupportedEvaluationError('Unsupported condition operator: ' + op);
       default:
-        return { passes: false, fetchFromServer: true };
+        throw new StatsigUnsupportedEvaluationError('Unsupported condition operator: ' + op);
     }
     return { passes: evalResult };
   }
@@ -488,6 +490,28 @@ function computeUserHash(userHash: string) {
   const bigInt = view.getBigUint64(0, false);
   return bigInt;
 }
+
+function getFromEnvironment(user: StatsigUser, field: string) {
+  return getParameterCaseInsensitive(user?.statsigEnvironment, field);
+}
+
+function getParameterCaseInsensitive(
+  object: Record<string, unknown> | undefined | null,
+  key: string,
+): unknown | undefined {
+  if (object == null) {
+    return undefined;
+  }
+  const asLowercase = key.toLowerCase();
+  const keyMatch = Object.keys(object).find(
+    (k) => k.toLowerCase() === asLowercase,
+  );
+  if (keyMatch === undefined) {
+    return undefined;
+  }
+  return object[keyMatch];
+}
+
 
 function getFromUser(user: StatsigUser, field: string): any | null {
   if (typeof user !== 'object' || user == null) {

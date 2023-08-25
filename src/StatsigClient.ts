@@ -151,15 +151,17 @@ export default class StatsigClient {
    * @throws Error if initialize() is not called first, or gateName is not a string
    */
   public checkGate(user: StatsigUser, gateName: string): boolean {
-    return this._checkGateImpl(user, gateName, 'checkGate');
+    const normalizedUser = this._normalizeUser(user);
+    return this._checkGateImpl(normalizedUser, gateName, 'checkGate');
   }
 
   public checkGateWithExposureLoggingDisabled(
     user: StatsigUser,
     gateName: string,
   ): boolean {
+    const normalizedUser = this._normalizeUser(user);
     return this._checkGateImpl(
-      user, 
+      normalizedUser, 
       gateName,
       'checkGateWithExposureLoggingDisabled',
     );
@@ -170,7 +172,8 @@ export default class StatsigClient {
     gateName: string,
   ) {
     this._errorBoundary._swallow('logGateExposure', () => {
-      this._logGateExposureImpl(user, gateName);
+      const normalizedUser = this._normalizeUser(user);
+      this._logGateExposureImpl(normalizedUser, gateName);
     });
   }
 
@@ -184,15 +187,17 @@ export default class StatsigClient {
     user: StatsigUser,
     configName: string,
   ): DynamicConfig {
-    return this._getConfigImpl(user, configName, 'getConfig');
+    const normalizedUser = this._normalizeUser(user);
+    return this._getConfigImpl(normalizedUser, configName, 'getConfig');
   }
 
   public getConfigWithExposureLoggingDisabled(
     user: StatsigUser,
     configName: string,
   ): DynamicConfig {
+    const normalizedUser = this._normalizeUser(user);
     return this._getConfigImpl(
-      user, 
+      normalizedUser, 
       configName,
       'getConfigWithExposureLoggingDisabled',
     );
@@ -200,36 +205,43 @@ export default class StatsigClient {
 
   public logConfigExposure(user: StatsigUser, configName: string) {
     this._errorBoundary._swallow('logConfigExposure', () => {
-      this._logConfigExposureImpl(user, configName);
+      const normalizedUser = this._normalizeUser(user);
+      this._logConfigExposureImpl(normalizedUser, configName);
     });
   }
 
   public getExperiment(user: StatsigUser, experimentName: string): DynamicConfig {
-    return this.getConfig(user, experimentName);
+    const normalizedUser = this._normalizeUser(user);
+    return this.getConfig(normalizedUser, experimentName);
   }
 
   public getExperimentWithExposureLoggingDisabled(
     user: StatsigUser,
     experimentName: string,
   ): DynamicConfig {
-    return this.getConfigWithExposureLoggingDisabled(user, experimentName);
+    const normalizedUser = this._normalizeUser(user);
+    return this.getConfigWithExposureLoggingDisabled(normalizedUser, experimentName);
   }
 
   public logExperimentExposure(user: StatsigUser, experimentName: string) {
-    this.logConfigExposure(user, experimentName);
+    const normalizedUser = this._normalizeUser(user);
+    this.logConfigExposure(normalizedUser, experimentName);
   }
 
   public getLayer(user: StatsigUser, layerName: string): Layer {
-    return this._getLayerImpl(user, layerName, 'getLayer');
+    const normalizedUser = this._normalizeUser(user);
+    return this._getLayerImpl(normalizedUser, layerName, 'getLayer');
   }
 
   public getLayerWithExposureLoggingDisabled(user: StatsigUser, layerName: string): Layer {
-    return this._getLayerImpl(user, layerName, 'getLayerWithExposureLoggingDisabled');
+    const normalizedUser = this._normalizeUser(user);
+    return this._getLayerImpl(normalizedUser, layerName, 'getLayerWithExposureLoggingDisabled');
   }
 
   public logLayerParameterExposure(user: StatsigUser, layerName: string, parameterName: string) {
     this._errorBoundary._swallow('logLayerParameterExposure', () => {
-      const layer = this._getLayerFromStore(user, null, layerName);
+      const normalizedUser = this._normalizeUser(user);
+      const layer = this._getLayerFromStore(normalizedUser, null, layerName);
       this._logLayerParameterExposureForLayer(layer, parameterName, true);
     });
   }
@@ -241,6 +253,7 @@ export default class StatsigClient {
     metadata: Record<string, string> | null = null,
   ): void {
     this._errorBoundary._swallow('logEvent', () => {
+      const normalizedUser = this._normalizeUser(user);
       if (!this._logger || !this._identity._sdkKey) {
         throw new StatsigUninitializedError(
           StatsigErrorMessage.REQUIRE_INITIALIZE_FOR_LOG_EVENT,
@@ -251,7 +264,7 @@ export default class StatsigClient {
       }
       const event = makeLogEvent(
         eventName,
-        user,
+        normalizedUser,
         this._identity._statsigMetadata,
         value,
         metadata,

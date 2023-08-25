@@ -65,7 +65,7 @@ describe('Verify behavior of top level index functions', () => {
     return statsig.initialize('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
-        statsig.checkGate();
+        statsig.checkGate({});
       }).toThrowError('Must pass a valid string as the gateName.');
     });
   });
@@ -74,7 +74,7 @@ describe('Verify behavior of top level index functions', () => {
     return statsig.initialize('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
-        statsig.checkGate(false);
+        statsig.checkGate({}, false);
       }).toThrowError('Must pass a valid string as the gateName.');
     });
   });
@@ -84,11 +84,11 @@ describe('Verify behavior of top level index functions', () => {
     return statsig.initialize('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
-        statsig.getConfig();
+        statsig.getConfig({});
       }).toThrowError('Must pass a valid string as the configName.');
       expect(() => {
         // @ts-ignore
-        statsig.getExperiment();
+        statsig.getExperiment({});
       }).toThrowError('Must pass a valid string as the configName.');
     });
   });
@@ -98,11 +98,11 @@ describe('Verify behavior of top level index functions', () => {
     return statsig.initialize('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
-        statsig.getConfig(12);
+        statsig.getConfig({}, 12);
       }).toThrowError('Must pass a valid string as the configName.');
       expect(() => {
         // @ts-ignore
-        statsig.getExperiment(12);
+        statsig.getExperiment({}, 12);
       }).toThrowError('Must pass a valid string as the configName.');
     });
   });
@@ -140,7 +140,7 @@ describe('Verify behavior of top level index functions', () => {
         const spy = jest.spyOn(statsig.instance._logger, 'log');
         let gateExposure = makeLogEvent(
           'statsig::gate_exposure',
-          {email: 'test@statsig.com'},
+          expect.objectContaining({email: 'test@statsig.com'}),
           (statsig as any).instance._identity._statsigMetadata,
           null,
           {
@@ -184,7 +184,7 @@ describe('Verify behavior of top level index functions', () => {
 
         const configExposure = makeLogEvent(
           'statsig::config_exposure',
-          {},
+          expect.objectContaining({}),
           (statsig as any).instance._identity._statsigMetadata,
           null,
           {
@@ -231,7 +231,7 @@ describe('Verify behavior of top level index functions', () => {
         const spy = jest.spyOn(statsig.instance._logger, 'log');
         const configExposure = makeLogEvent(
           'statsig::config_exposure',
-          {},
+          expect.objectContaining({}),
           (statsig as any).instance._identity._statsigMetadata,
           null,
           {
@@ -320,12 +320,12 @@ describe('Verify behavior of top level index functions', () => {
           time: expect.any(Number),
         },
         secondaryExposures: [],
-        user: {
+        user: expect.objectContaining({
           userID: '12345',
           country: 'US',
           custom: { key: 'value' },
           email: "test@statsig.com",
-        },
+        }),
         statsigMetadata: expect.any(Object),
         time: expect.any(Number),
         value: null,
@@ -341,12 +341,12 @@ describe('Verify behavior of top level index functions', () => {
           time: expect.any(Number),
         },
         secondaryExposures: [],
-        user: {
+        user: expect.objectContaining({
           userID: '12345',
           country: 'US',
           custom: { key: 'value' },
           email: "test@statsig.com",
-        },
+        }),
         statsigMetadata: expect.any(Object),
         time: expect.any(Number),
         value: null,
@@ -358,12 +358,12 @@ describe('Verify behavior of top level index functions', () => {
         metadata: {
           key: 'value',
         },
-        user: {
+        user: expect.objectContaining({
           userID: '12345',
           country: 'US',
           custom: { key: 'value' },
           email: "test@statsig.com",
-        },
+        }),
         statsigMetadata: expect.any(Object),
         time: expect.any(Number),
         value: 'value',
@@ -375,7 +375,7 @@ describe('Verify behavior of top level index functions', () => {
 
     expect(postedLogs['statsigMetadata']).toEqual(
       expect.objectContaining({
-        sdkType: 'js-lite',
+        sdkType: 'local-eval-js',
         sdkVersion: expect.any(String),
         stableID: expect.any(String),
       }),
