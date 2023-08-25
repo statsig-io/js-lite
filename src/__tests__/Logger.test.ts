@@ -67,7 +67,7 @@ describe('Verify behavior of StatsigLogger', () => {
     const spyOnErrorBoundary = jest.spyOn(client._errorBoundary, '_logError');
 
     const makeSimpleLogEvent = (name: string) =>
-      makeLogEvent(name, null, client._identity._statsigMetadata, null, null);
+      makeLogEvent(name, {}, client._identity._statsigMetadata, null, null);
 
     // TODO @Tore update deduping since user object can differ
     return client.initializeAsync().then(async () => {

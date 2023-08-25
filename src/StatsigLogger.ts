@@ -92,7 +92,7 @@ export default class StatsigLogger {
   }
 
   public logGateExposure(
-    user: StatsigUser | null,
+    user: StatsigUser,
     gateName: string,
     gateValue: boolean,
     ruleID: string,
@@ -129,7 +129,7 @@ export default class StatsigLogger {
   }
 
   public logConfigExposure(
-    user: StatsigUser | null,
+    user: StatsigUser,
     configName: string,
     ruleID: string,
     secondaryExposures: Record<string, string>[],
@@ -164,7 +164,7 @@ export default class StatsigLogger {
   }
 
   public logLayerExposure(
-    user: StatsigUser | null,
+    user: StatsigUser,
     configName: string,
     ruleID: string,
     secondaryExposures: Record<string, string>[],
@@ -213,7 +213,7 @@ export default class StatsigLogger {
   }
 
   public logConfigDefaultValueFallback = (
-    user: StatsigUser | null,
+    user: StatsigUser,
     message: string,
     metadata: object,
   ) => {

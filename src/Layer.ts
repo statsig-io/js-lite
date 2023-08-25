@@ -7,7 +7,7 @@ export type LogParameterFunction = (
 ) => void;
 
 export default class Layer {
-  readonly _user: StatsigUser | null;
+  readonly _user: StatsigUser;
   readonly _name: string;
   readonly _value: Record<string, any>;
   readonly _ruleID: string;
@@ -19,7 +19,7 @@ export default class Layer {
   readonly _logParameterFunction: LogParameterFunction | null;
 
   private constructor(
-    user: StatsigUser | null,
+    user: StatsigUser,
     name: string,
     layerValue: Record<string, any>,
     ruleID: string,
@@ -43,7 +43,7 @@ export default class Layer {
   }
 
   static _create(
-    user: StatsigUser | null,
+    user: StatsigUser,
     name: string,
     value: Record<string, any>,
     ruleID: string,

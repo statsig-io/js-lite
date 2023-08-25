@@ -1,3 +1,5 @@
+import { StatsigEnvironment } from "./StatsigSDKOptions";
+
 export type StatsigUser = {
   userID?: string | number;
   email?: string;
@@ -15,4 +17,5 @@ export type StatsigUser = {
     string | number | boolean | Array<string> | undefined
   >;
   customIDs?: Record<string, string>;
+  statsigEnvironment?: StatsigEnvironment;
 };

@@ -49,7 +49,7 @@ describe('ExposureLogging', () => {
 
   describe('standard use', () => {
     it('logs gate exposures', async () => {
-      Statsig.checkGate(null, 'a_gate');
+      Statsig.checkGate({}, 'a_gate');
       expect(events.length).toBe(1);
       expect(events[0].metadata.gate).toEqual('a_gate');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
@@ -57,7 +57,7 @@ describe('ExposureLogging', () => {
     });
 
     it('logs config exposures', async () => {
-      Statsig.getConfig(null, 'a_config');
+      Statsig.getConfig({}, 'a_config');
       expect(events.length).toBe(1);
       expect(events[0].metadata.config).toEqual('a_config');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
@@ -65,7 +65,7 @@ describe('ExposureLogging', () => {
     });
 
     it('logs experiment exposures', async () => {
-      Statsig.getExperiment(null, 'an_experiment');
+      Statsig.getExperiment({}, 'an_experiment');
       expect(events.length).toBe(1);
       expect(events[0].metadata.config).toEqual('an_experiment');
       expect(events[0].metadata.isManualExposure).toBeUndefined();
@@ -73,7 +73,7 @@ describe('ExposureLogging', () => {
     });
 
     it('logs layer exposures', async () => {
-      const layer = Statsig.getLayer(null, 'layer');
+      const layer = Statsig.getLayer({}, 'layer');
       layer.get('a_string', "default");
       expect(events.length).toBe(1);
       expect(events[0].metadata.config).toEqual('layer');

@@ -42,7 +42,7 @@ describe('Layer Exposure Logging', () => {
 
     await Statsig.initialize('client-key');
 
-    let layer = Statsig.getLayer(null, 'layer');
+    let layer = Statsig.getLayer({}, 'layer');
     layer.get('an_int', '');
     Statsig.shutdown();
 

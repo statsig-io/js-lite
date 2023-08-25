@@ -11,7 +11,7 @@ describe('Statsig ErrorBoundary Usage', () => {
   let requests: { url: RequestInfo; params: RequestInit }[] = [];
   let client: StatsigClient;
   let responseString: unknown = '{"has_updates": true}';
-  const user = null;
+  const user = {};
 
   function expectSingleError(
     info: string,
