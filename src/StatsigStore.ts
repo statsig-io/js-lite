@@ -73,7 +73,6 @@ export default class StatsigStore {
       featureGates,
       dynamicConfigs,
       layerConfigs,
-      layerMapping,
     );
     if (updated) {
       this.lcut = jsonConfigs.time ?? 0;

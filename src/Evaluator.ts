@@ -12,25 +12,17 @@ export default class Evaluator {
   private featureGates: Record<string, ConfigSpec>;
   private dynamicConfigs: Record<string, ConfigSpec>;
   private layerConfigs: Record<string, ConfigSpec>;
-  private expToLayer: Record<string, string>;
 
   public constructor() {
     this.featureGates = {};
     this.dynamicConfigs = {};
     this.layerConfigs = {};
-    this.expToLayer = {};
   }
-
-  public getExperimentLayer(experimentName: string): string | null {
-    return this.expToLayer[experimentName] ?? null;
-  }
-
 
   public setConfigSpecs(
     featureGates: Array<Record<string, unknown>>,
     dynamicConfigs: Array<Record<string, unknown>>,
     layerConfigs: Array<Record<string, unknown>>,
-    layerMapping: Record<string, Array<String>>,
   ) {
     let updatedGates: Record<string, ConfigSpec> = {};
     let updatedConfigs: Record<string, ConfigSpec> = {};
@@ -71,13 +63,9 @@ export default class Evaluator {
       }
     }
 
-    const updatedExpToLayer: Record<string, string> =
-      this._reverseLayerExperimentMapping(layerMapping);
-    console.log(updatedLayers);
     this.featureGates = updatedGates;
     this.dynamicConfigs = updatedConfigs;
     this.layerConfigs = updatedLayers;
-    this.expToLayer = updatedExpToLayer;
     return true;
   }
 
@@ -93,9 +81,7 @@ export default class Evaluator {
 
   public getLayer(user: StatsigUser | null, layerName: string): ConfigEvaluation {
     const layer = this.layerConfigs[layerName];
-    console.log(layer);
     const res = this._evalConfigSpec(user, layer);
-    console.log(res);
     return res;
   }
 
@@ -484,26 +470,6 @@ export default class Evaluator {
         return { passes: false, fetchFromServer: true };
     }
     return { passes: evalResult };
-  }
-
-  /**
-   * Returns a reverse mapping of layers to experiment (or vice versa)
-   */
-  private _reverseLayerExperimentMapping(
-    layersMapping: unknown,
-  ): Record<string, string> {
-    const reverseMapping: Record<string, string> = {};
-    if (layersMapping != null && typeof layersMapping === 'object') {
-      for (const [layerName, experiments] of Object.entries(
-        layersMapping,
-      )) {
-        for (const experimentName of experiments) {
-          // experiment -> layer is a 1:1 mapping
-          reverseMapping[experimentName] = layerName;
-        }
-      }
-    }
-    return reverseMapping;
   }
 }
 
