@@ -1,4 +1,4 @@
-export const DEFAULT_CONFIG_SPEC_API = 'https://dcs-worker.statsig.workers.dev/';
+export const DEFAULT_CONFIG_SPEC_API = 'https://dcs-worker.statsig.workers.dev/v1/';
 export const DEFAULT_EVENT_LOGGING_API = 'https://events.statsigapi.net/v1/';
 
 export const INIT_TIMEOUT_DEFAULT_MS = 3000;

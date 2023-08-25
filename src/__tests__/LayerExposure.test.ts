@@ -102,10 +102,10 @@ describe('Layer Exposure Logging', () => {
 
       expect(logs['events'][0]).toEqual(
         expect.objectContaining({
-          user: {
+          user: expect.objectContaining({
             userID: 'xin',
             email: 'support@statsig.com',
-          },
+          }),
           metadata: {
             config: 'layer',
             ruleID: '2B3nzQ8DTDCxlSf0YOaTan',

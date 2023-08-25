@@ -13,5 +13,6 @@ export enum EvaluationReason {
   Unrecognized = 'Unrecognized',
   Uninitialized = 'Uninitialized',
   Error = 'Error',
+  Unsupported = 'Unsupported',
   NetworkNotModified = 'NetworkNotModified',
 }
