@@ -57,9 +57,7 @@ export default class StatsigNetwork {
     this._init();
   }
 
-  public fetchValues(
-    timeout: number,
-  ): PromiseWithTimeout<Record<string, any>> {
+  public fetchValues(timeout: number): PromiseWithTimeout<Record<string, any>> {
     return this._postWithTimeout(
       StatsigEndpoint.DownloadConfigSpecs,
       null,
@@ -129,7 +127,7 @@ export default class StatsigNetwork {
 
     const params: RequestInit = {
       method: 'POST',
-      body: body === null ? null : JSON.stringify(body),
+      body: JSON.stringify(body ?? {}),
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
         'STATSIG-API-KEY': this._identity._sdkKey,
@@ -193,7 +191,7 @@ export default class StatsigNetwork {
     if (!this._options.disableNetworkKeepalive) {
       try {
         this.canUseKeepalive = 'keepalive' in new Request('');
-      } catch (_e) { }
+      } catch (_e) {}
     }
   }
 
