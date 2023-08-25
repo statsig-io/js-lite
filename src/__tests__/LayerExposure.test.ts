@@ -143,6 +143,7 @@ describe('Layer Exposure Logging', () => {
         a_double: 1.23,
         a_long: 1,
         a_string: 'value',
+        // @ts-ignore
         an_array: ['a', 'b'],
         an_object: { key: 'value' },
       };
