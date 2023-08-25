@@ -1,7 +1,8 @@
 
 import ConfigEvaluation from './ConfigEvaluation';
 import { ConfigCondition, ConfigRule, ConfigSpec } from './ConfigSpec';
-import { EvaluationDetails, EvaluationReason } from './EvaluationMetadata';
+import { StatsigUnsupportedEvaluationError } from './Errors';
+import { EvaluationReason } from './EvaluationMetadata';
 import { StatsigUser } from './StatsigUser';
 import { getHashValue } from './utils/Hashing';
 
@@ -144,13 +145,18 @@ export default class Evaluator {
         }
       }
     } catch(e: unknown) {
-      return new ConfigEvaluation(
-        false,
-        'default',
-        secondary_exposures,
-        config.defaultValue as Record<string, unknown>,
-        config.explicitParameters,
-      ).withEvaluationReason(EvaluationReason.Unsupported)
+      if (e instanceof StatsigUnsupportedEvaluationError) {
+        return new ConfigEvaluation(
+          false,
+          'default',
+          secondary_exposures,
+          config.defaultValue as Record<string, unknown>,
+          config.explicitParameters,
+        ).withEvaluationReason(EvaluationReason.Unsupported)
+      } else {
+        // other error, let error boundary handle this
+        throw e;
+      }
     }
 
     return new ConfigEvaluation(
@@ -268,10 +274,10 @@ export default class Evaluator {
         };
       case 'ip_based':
         // this would apply to things like 'country', 'region', etc.
-        throw new Error('Unsupported condition: ' + condition.type);
+        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
       case 'ua_based':
         // this would apply to things like 'os', 'browser', etc.
-        throw new Error('Unsupported condition: ' + condition.type);
+        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
       case 'user_field':
         value = getFromUser(user, field);
         break;
@@ -297,7 +303,7 @@ export default class Evaluator {
         }
         break;
       default:
-        throw new Error('Unsupported condition: ' + condition.type);
+        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
     }
 
     const op = condition.operator?.toLowerCase();
@@ -461,9 +467,9 @@ export default class Evaluator {
         break;
       case 'in_segment_list':
       case 'not_in_segment_list':
-        throw new Error('Unsupported condition operator: ' + op);
+        throw new StatsigUnsupportedEvaluationError('Unsupported condition operator: ' + op);
       default:
-        return { passes: false, fetchFromServer: true };
+        throw new StatsigUnsupportedEvaluationError('Unsupported condition operator: ' + op);
     }
     return { passes: evalResult };
   }
