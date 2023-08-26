@@ -2,8 +2,6 @@ name: KONG
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 0/4 * * *'
   pull_request:
     branches: [main]
   push:
@@ -17,7 +15,6 @@ env:
 
 jobs:
   KONG:
-    if: github.event_name != 'schedule' || github.repository.private
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
@@ -28,10 +25,10 @@ jobs:
         run: npm install
 
       - name: Setup JS Lite SDK
-        run: npm run kong -- setup js-lite -v
+        run: npm run kong -- setup js-local-eval -v
 
       - name: Build Bridge Image
-        run: npm run kong -- build js-lite -v
+        run: npm run kong -- build js-local-eval -v
 
       - name: Run Tests
-        run: npm run kong -- test js-lite -v -r
+        run: npm run kong -- test js-local-eval -v -r
