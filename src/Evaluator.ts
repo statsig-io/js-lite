@@ -1,4 +1,3 @@
-
 import ConfigEvaluation from './ConfigEvaluation';
 import { ConfigCondition, ConfigRule, ConfigSpec } from './ConfigSpec';
 import { StatsigUnsupportedEvaluationError } from './Errors';
@@ -87,7 +86,10 @@ export default class Evaluator {
     return res;
   }
 
-  private _evalConfigSpec(user: StatsigUser, config: ConfigSpec | null): ConfigEvaluation {
+  private _evalConfigSpec(
+    user: StatsigUser,
+    config: ConfigSpec | null,
+  ): ConfigEvaluation {
     if (!config) {
       return new ConfigEvaluation(false, '').withEvaluationReason(
         EvaluationReason.Unrecognized,
@@ -95,9 +97,7 @@ export default class Evaluator {
     }
 
     const evaulation = this._eval(user, config);
-    return evaulation.withEvaluationReason(
-      EvaluationReason.Network,
-    );
+    return evaulation.withEvaluationReason(EvaluationReason.Network);
   }
 
   private _eval(user: StatsigUser, config: ConfigSpec): ConfigEvaluation {
@@ -115,11 +115,11 @@ export default class Evaluator {
       for (let i = 0; i < config.rules.length; i++) {
         let rule = config.rules[i];
         const ruleResult = this._evalRule(user, rule);
-  
+
         secondary_exposures = secondary_exposures.concat(
           ruleResult.secondary_exposures,
         );
-  
+
         if (ruleResult.value === true) {
           const delegatedResult = this._evalDelegate(
             user,
@@ -129,7 +129,7 @@ export default class Evaluator {
           if (delegatedResult) {
             return delegatedResult;
           }
-  
+
           const pass = this._evalPassPercent(user, rule, config);
           const evaluation = new ConfigEvaluation(
             pass,
@@ -145,7 +145,7 @@ export default class Evaluator {
           return evaluation;
         }
       }
-    } catch(e: unknown) {
+    } catch (e: unknown) {
       if (e instanceof StatsigUnsupportedEvaluationError) {
         return new ConfigEvaluation(
           false,
@@ -153,7 +153,7 @@ export default class Evaluator {
           secondary_exposures,
           config.defaultValue as Record<string, unknown>,
           config.explicitParameters,
-        ).withEvaluationReason(EvaluationReason.Unsupported)
+        ).withEvaluationReason(EvaluationReason.Unsupported);
       } else {
         // other error, let error boundary handle this
         throw e;
@@ -193,7 +193,11 @@ export default class Evaluator {
     return delegatedResult;
   }
 
-  private _evalPassPercent(user: StatsigUser, rule: ConfigRule, config: ConfigSpec) {
+  private _evalPassPercent(
+    user: StatsigUser,
+    rule: ConfigRule,
+    config: ConfigSpec,
+  ) {
     if (rule.passPercentage === 100) {
       return true;
     } else if (rule.passPercentage === 0) {
@@ -201,10 +205,10 @@ export default class Evaluator {
     }
     const hash = computeUserHash(
       config.salt +
-      '.' +
-      (rule.salt ?? rule.id) +
-      '.' +
-      (this._getUnitID(user, rule.idType) ?? ''),
+        '.' +
+        (rule.salt ?? rule.id) +
+        '.' +
+        (this._getUnitID(user, rule.idType) ?? ''),
     );
     return (
       Number(hash % BigInt(CONDITION_SEGMENT_COUNT)) < rule.passPercentage * 100
@@ -258,7 +262,10 @@ export default class Evaluator {
         return { passes: true };
       case 'fail_gate':
       case 'pass_gate':
-        const gateResult = this._evalConfigSpec(user, this.featureGates[target as string]);
+        const gateResult = this._evalConfigSpec(
+          user,
+          this.featureGates[target as string],
+        );
         value = gateResult?.value;
 
         let allExposures = gateResult?.secondary_exposures ?? [];
@@ -275,10 +282,14 @@ export default class Evaluator {
         };
       case 'ip_based':
         // this would apply to things like 'country', 'region', etc.
-        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
+        throw new StatsigUnsupportedEvaluationError(
+          'Unsupported condition: ' + condition.type,
+        );
       case 'ua_based':
         // this would apply to things like 'os', 'browser', etc.
-        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
+        throw new StatsigUnsupportedEvaluationError(
+          'Unsupported condition: ' + condition.type,
+        );
       case 'user_field':
         value = getFromUser(user, field);
         break;
@@ -304,7 +315,9 @@ export default class Evaluator {
         }
         break;
       default:
-        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
+        throw new StatsigUnsupportedEvaluationError(
+          'Unsupported condition: ' + condition.type,
+        );
     }
 
     const op = condition.operator?.toLowerCase();
@@ -468,28 +481,29 @@ export default class Evaluator {
         break;
       case 'in_segment_list':
       case 'not_in_segment_list':
-        throw new StatsigUnsupportedEvaluationError('Unsupported condition operator: ' + op);
+        throw new StatsigUnsupportedEvaluationError(
+          'Unsupported condition operator: ' + op,
+        );
       default:
-        throw new StatsigUnsupportedEvaluationError('Unsupported condition operator: ' + op);
+        throw new StatsigUnsupportedEvaluationError(
+          'Unsupported condition operator: ' + op,
+        );
     }
     return { passes: evalResult };
   }
 }
 
-function stringToBytes(str: String) {
-  const bytes = new Uint8Array(str.length);
-  for (let i = 0; i < str.length; i++) {
-    bytes[i] = str.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
 function computeUserHash(userHash: string) {
-  const buffer = sha256(userHash);
-  // @ts-ignore
-  const view = new DataView(stringToBytes(buffer));
-  const bigInt = view.getBigUint64(0, false);
-  return bigInt;
+  const buffer = sha256.create().update(userHash).digest();
+  const ab = new ArrayBuffer(buffer.length);
+  const view = new Uint8Array(ab);
+  for (let ii = 0; ii < buffer.length; ii++) {
+    view[ii] = buffer[ii];
+  }
+
+  const dv = new DataView(ab);
+  const hash = dv.getBigUint64(0, false);
+  return hash;
 }
 
 function getFromEnvironment(user: StatsigUser, field: string) {
@@ -512,7 +526,6 @@ function getParameterCaseInsensitive(
   }
   return object[keyMatch];
 }
-
 
 function getFromUser(user: StatsigUser, field: string): any | null {
   if (typeof user !== 'object' || user == null) {
