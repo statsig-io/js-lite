@@ -215,6 +215,7 @@ export default class StatsigClient {
     layerName: string,
     options?: GetLayerOptions,
   ): Layer {
+    
     const normalizedUser = this._normalizeUser(user);
     return this._getLayerImpl(normalizedUser, layerName, options);
   }
@@ -299,7 +300,6 @@ export default class StatsigClient {
         'User object must be convertable to JSON string.',
       );
     }
-
     if (this._options.environment != null) {
       userCopy = { ...userCopy, statsigEnvironment: this._options.environment };
     }
@@ -503,7 +503,7 @@ export default class StatsigClient {
     parameterName: string,
     isManualExposure: boolean = false,
   ) => {
-    let allocatedExperiment = null;
+    let allocatedExperiment: string | null = null;
     let exposures = layer._undelegatedSecondaryExposures;
     const isExplicit = layer._explicitParameters.includes(parameterName);
     if (isExplicit) {

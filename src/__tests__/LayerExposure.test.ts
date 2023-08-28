@@ -68,7 +68,7 @@ describe('Layer Exposure Logging', () => {
       await Statsig.initialize('client-key');
 
       let layer = Statsig.getLayer({userID: 'xin'}, 'layer');
-      expect(layer[method]('an_int', 0)).toEqual(12);
+      expect(layer[method]('an_int', 0)).toEqual(8);
       Statsig.shutdown();
 
       expect(logs['events'].length).toEqual(1);
@@ -78,7 +78,7 @@ describe('Layer Exposure Logging', () => {
           eventName: "statsig::layer_exposure",
           metadata: {
             config: 'layer',
-            ruleID: '2B3nzOtBrlt32sH5nGffRl',
+            ruleID: '2B3nzQ8DTDCxlSf0YOaTan',
             allocatedExperiment: 'the_allocated_experiment',
             parameterName: 'an_int',
             isExplicitParameter: 'true',
@@ -99,7 +99,6 @@ describe('Layer Exposure Logging', () => {
       Statsig.shutdown();
 
       expect(logs['events'].length).toEqual(2);
-
       expect(logs['events'][0]).toEqual(
         expect.objectContaining({
           user: expect.objectContaining({
@@ -108,7 +107,7 @@ describe('Layer Exposure Logging', () => {
           }),
           metadata: {
             config: 'layer',
-            ruleID: '2B3nzOtBrlt32sH5nGffRl',
+            ruleID: '2B3nzQ8DTDCxlSf0YOaTan',
             allocatedExperiment: 'the_allocated_experiment',
             parameterName: 'an_int',
             isExplicitParameter: 'true',
@@ -123,7 +122,7 @@ describe('Layer Exposure Logging', () => {
         expect.objectContaining({
           metadata: {
             config: 'layer',
-            ruleID: '2B3nzOtBrlt32sH5nGffRl',
+            ruleID: '2B3nzQ8DTDCxlSf0YOaTan',
             allocatedExperiment: null,
             parameterName: 'a_string',
             isExplicitParameter: 'false',
