@@ -3,8 +3,7 @@ import { ConfigCondition, ConfigRule, ConfigSpec } from './ConfigSpec';
 import { StatsigUnsupportedEvaluationError } from './Errors';
 import { EvaluationReason } from './EvaluationMetadata';
 import { StatsigUser } from './StatsigUser';
-import { getHashValue } from './utils/Hashing';
-import { sha256 } from 'js-sha256';
+import { sha256create } from './utils/js-sha256';
 
 const CONDITION_SEGMENT_COUNT = 10 * 1000;
 const USER_BUCKET_COUNT = 1000;
@@ -253,7 +252,7 @@ export default class Evaluator {
     user: StatsigUser,
     condition: ConfigCondition,
   ): { passes: boolean; fetchFromServer?: boolean; exposures?: any[] } {
-    let value = null;
+    let value: unknown | null = null;
     let field = condition.field;
     let target = condition.targetValue;
     let idType = condition.idType;
@@ -352,37 +351,37 @@ export default class Evaluator {
       // version
       case 'version_gt':
         evalResult = versionCompareHelper((result) => result > 0)(
-          value,
+          value as string,
           target as string,
         );
         break;
       case 'version_gte':
         evalResult = versionCompareHelper((result) => result >= 0)(
-          value,
+          value as string,
           target as string,
         );
         break;
       case 'version_lt':
         evalResult = versionCompareHelper((result) => result < 0)(
-          value,
+          value as string,
           target as string,
         );
         break;
       case 'version_lte':
         evalResult = versionCompareHelper((result) => result <= 0)(
-          value,
+          value as string,
           target as string,
         );
         break;
       case 'version_eq':
         evalResult = versionCompareHelper((result) => result === 0)(
-          value,
+          value as string,
           target as string,
         );
         break;
       case 'version_neq':
         evalResult = versionCompareHelper((result) => result !== 0)(
-          value,
+          value as string,
           target as string,
         );
         break;
@@ -467,17 +466,23 @@ export default class Evaluator {
 
       // dates
       case 'before':
-        evalResult = dateCompare((a, b) => a < b)(value, target as string);
+        evalResult = dateCompare((a, b) => a < b)(
+          value as string,
+          target as string,
+        );
         break;
       case 'after':
-        evalResult = dateCompare((a, b) => a > b)(value, target as string);
+        evalResult = dateCompare((a, b) => a > b)(
+          value as string,
+          target as string,
+        );
         break;
       case 'on':
         evalResult = dateCompare((a, b) => {
           a?.setHours(0, 0, 0, 0);
           b?.setHours(0, 0, 0, 0);
           return a?.getTime() === b?.getTime();
-        })(value, target as string);
+        })(value as string, target as string);
         break;
       case 'in_segment_list':
       case 'not_in_segment_list':
@@ -494,7 +499,7 @@ export default class Evaluator {
 }
 
 function computeUserHash(userHash: string) {
-  const buffer = sha256.create().update(userHash).digest();
+  const buffer = sha256create().update(userHash).arrayBuffer();
   const ab = new ArrayBuffer(buffer.length);
   const view = new Uint8Array(ab);
   for (let ii = 0; ii < buffer.length; ii++) {
@@ -561,8 +566,8 @@ function numberCompare(
 
 function versionCompareHelper(
   fn: (res: number) => boolean,
-): (a: string, b: string) => boolean {
-  return (a: string, b: string) => {
+): (a: string | null, b: string | null) => boolean {
+  return (a: string | null, b: string | null) => {
     const comparison = versionCompare(a, b);
     if (comparison == null) {
       return false;
@@ -574,8 +579,16 @@ function versionCompareHelper(
 // Compare two version strings without the extensions.
 // returns -1, 0, or 1 if first is smaller than, equal to, or larger than second.
 // returns false if any of the version strings is not valid.
-function versionCompare(first: string, second: string): number | null {
-  if (typeof first !== 'string' || typeof second !== 'string') {
+function versionCompare(
+  first: string | null,
+  second: string | null,
+): number | null {
+  if (
+    first == null ||
+    second == null ||
+    typeof first !== 'string' ||
+    typeof second !== 'string'
+  ) {
     return null;
   }
   const version1 = removeVersionExtension(first);
@@ -623,8 +636,8 @@ function removeVersionExtension(version: string): string {
 function stringCompare(
   ignoreCase: boolean,
   fn: (a: string, b: string) => boolean,
-): (a: string, b: string) => boolean {
-  return (a: string, b: string): boolean => {
+): (a: string | null, b: string | null) => boolean {
+  return (a: string | null, b: string | null): boolean => {
     if (a == null || b == null) {
       return false;
     }
@@ -636,8 +649,8 @@ function stringCompare(
 
 function dateCompare(
   fn: (a: Date, b: Date) => boolean,
-): (a: string, b: string) => boolean {
-  return (a: string, b: string): boolean => {
+): (a: string | null, b: string | null) => boolean {
+  return (a: string | null, b: string | null): boolean => {
     if (a == null || b == null) {
       return false;
     }

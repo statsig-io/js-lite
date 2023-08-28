@@ -19,8 +19,6 @@ export type StatsigOptions = {
   overrideStableID?: string;
   localMode?: boolean;
   initTimeoutMs?: number;
-  disableErrorLogging?: boolean;
-  disableAutoMetricsLogging?: boolean;
   initializeValues?: Record<string, any> | null;
   disableLocalStorage?: boolean;
   ignoreWindowUndefined?: boolean;
@@ -43,8 +41,6 @@ export default class StatsigSDKOptions {
   readonly overrideStableID: string | null;
   readonly localMode: boolean;
   readonly initTimeoutMs: number;
-  readonly disableErrorLogging: boolean;
-  readonly disableAutoMetricsLogging: boolean;
   readonly initializeValues: Record<string, any> | null;
   readonly disableLocalStorage: boolean;
   readonly ignoreWindowUndefined: boolean;
@@ -81,8 +77,6 @@ export default class StatsigSDKOptions {
       options.initTimeoutMs && options.initTimeoutMs >= 0
         ? options.initTimeoutMs
         : INIT_TIMEOUT_DEFAULT_MS;
-    this.disableErrorLogging = options.disableErrorLogging ?? false;
-    this.disableAutoMetricsLogging = options.disableAutoMetricsLogging ?? false;
     this.initializeValues = options.initializeValues ?? null;
     
     this.disableLocalStorage = options.disableLocalStorage ?? false;

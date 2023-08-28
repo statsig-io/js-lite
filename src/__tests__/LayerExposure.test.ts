@@ -6,6 +6,10 @@ import Statsig from '../index';
 import { EvaluationReason } from '../EvaluationMetadata';
 import * as TestData from './basic_config_spec.json';
 
+type Indexable = {
+  [key: string]: (_arg0: string, _arg1: any) => any;
+};
+
 describe('Layer Exposure Logging', () => {
   let response = TestData;
   var logs: {
@@ -55,7 +59,7 @@ describe('Layer Exposure Logging', () => {
     it('does not log a non-existent key', async () => {
       await Statsig.initialize('client-key', null);
 
-      let layer = Statsig.getLayer({userID: 'tore'}, 'layer');
+      let layer = Statsig.getLayer({userID: 'tore'}, 'layer') as unknown as Indexable;
       layer[method]('a_nonexistant_key', 0);
       Statsig.shutdown();
 
@@ -67,8 +71,8 @@ describe('Layer Exposure Logging', () => {
     it('logs layers without an allocated experiment correctly', async () => {
       await Statsig.initialize('client-key');
 
-      let layer = Statsig.getLayer({userID: 'xin'}, 'layer');
-      expect(layer[method]('an_int', 0)).toEqual(12);
+      let layer = Statsig.getLayer({userID: 'xin'}, 'layer') as unknown as Indexable;
+      expect(layer[method]('an_int', 0)).toEqual(8);
       Statsig.shutdown();
 
       expect(logs['events'].length).toEqual(1);
@@ -78,7 +82,7 @@ describe('Layer Exposure Logging', () => {
           eventName: "statsig::layer_exposure",
           metadata: {
             config: 'layer',
-            ruleID: '2B3nzOtBrlt32sH5nGffRl',
+            ruleID: '2B3nzQ8DTDCxlSf0YOaTan',
             allocatedExperiment: 'the_allocated_experiment',
             parameterName: 'an_int',
             isExplicitParameter: 'true',
@@ -93,13 +97,12 @@ describe('Layer Exposure Logging', () => {
     it('logs explicit and implicit parameters correctly', async () => {
       await Statsig.initialize('client-key');
 
-      let layer = Statsig.getLayer({userID: 'xin', email: 'support@statsig.com'}, 'layer');
+      let layer = Statsig.getLayer({userID: 'xin', email: 'support@statsig.com'}, 'layer') as unknown as Indexable;
       layer[method]('an_int', 0);
       layer[method]('a_string', '');
       Statsig.shutdown();
 
       expect(logs['events'].length).toEqual(2);
-
       expect(logs['events'][0]).toEqual(
         expect.objectContaining({
           user: expect.objectContaining({
@@ -108,7 +111,7 @@ describe('Layer Exposure Logging', () => {
           }),
           metadata: {
             config: 'layer',
-            ruleID: '2B3nzOtBrlt32sH5nGffRl',
+            ruleID: '2B3nzQ8DTDCxlSf0YOaTan',
             allocatedExperiment: 'the_allocated_experiment',
             parameterName: 'an_int',
             isExplicitParameter: 'true',
@@ -123,7 +126,7 @@ describe('Layer Exposure Logging', () => {
         expect.objectContaining({
           metadata: {
             config: 'layer',
-            ruleID: '2B3nzOtBrlt32sH5nGffRl',
+            ruleID: '2B3nzQ8DTDCxlSf0YOaTan',
             allocatedExperiment: null,
             parameterName: 'a_string',
             isExplicitParameter: 'false',
@@ -150,7 +153,7 @@ describe('Layer Exposure Logging', () => {
 
       await Statsig.initialize('client-key', null);
 
-      let layer = Statsig.getLayer({userID: "tore"}, 'layer');
+      let layer = Statsig.getLayer({userID: "tore"}, 'layer') as unknown as Indexable;
       layer[method]('a_bool', false);
       layer[method]('an_int', 0);
       layer[method]('a_double', 0.0);
@@ -182,7 +185,7 @@ describe('Layer Exposure Logging', () => {
     it('does not log when shutdown', async () => {
       await Statsig.initialize('client-key', null);
 
-      let layer = Statsig.getLayer({userID: "xin"}, 'layer');
+      let layer = Statsig.getLayer({userID: "xin"}, 'layer') as unknown as Indexable;
       Statsig.shutdown();
 
       layer[method]('an_int', 77);

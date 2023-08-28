@@ -343,7 +343,7 @@ export default class StatsigLogger {
     if (failedRequests.length > MAX_LOCAL_STORAGE_SIZE) {
       fireAndForget = true;
     }
-    let requestBodies = [];
+    let requestBodies: FailedLogEventBody[] = [];
     try {
       requestBodies = JSON.parse(failedRequests);
       for (const requestBody of requestBodies) {
@@ -466,13 +466,12 @@ export default class StatsigLogger {
       return;
     }
     this._loggedErrors.add(name);
-
-    this._failedLogEvents.push({
+    this._addFailedRequest({
       events: queue,
       statsigMetadata: this._identity._statsigMetadata,
       time: Date.now(),
     });
 
-    this._saveFailedRequests().then(() => { });
+    this._saveFailedRequests().catch(() => {});
   }
 }
