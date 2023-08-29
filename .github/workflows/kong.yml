@@ -24,7 +24,7 @@ jobs:
       - name: Install Deps
         run: npm install
 
-      - name: Setup JS Lite SDK
+      - name: Setup JS Local Evaluations SDK
         run: npm run kong -- setup js-local-eval -v
 
       - name: Build Bridge Image
