@@ -24,9 +24,9 @@ export default class Evaluator {
     dynamicConfigs: Array<Record<string, unknown>>,
     layerConfigs: Array<Record<string, unknown>>,
   ) {
-    let updatedGates: Record<string, ConfigSpec> = {};
-    let updatedConfigs: Record<string, ConfigSpec> = {};
-    let updatedLayers: Record<string, ConfigSpec> = {};
+    const updatedGates: Record<string, ConfigSpec> = {};
+    const updatedConfigs: Record<string, ConfigSpec> = {};
+    const updatedLayers: Record<string, ConfigSpec> = {};
     if (
       !Array.isArray(featureGates) ||
       !Array.isArray(dynamicConfigs) ||
@@ -112,7 +112,7 @@ export default class Evaluator {
     let secondary_exposures: Record<string, string>[] = [];
     try {
       for (let i = 0; i < config.rules.length; i++) {
-        let rule = config.rules[i];
+        const rule = config.rules[i];
         const ruleResult = this._evalRule(user, rule);
 
         secondary_exposures = secondary_exposures.concat(
@@ -253,21 +253,21 @@ export default class Evaluator {
     condition: ConfigCondition,
   ): { passes: boolean; fetchFromServer?: boolean; exposures?: any[] } {
     let value: unknown | null = null;
-    let field = condition.field;
-    let target = condition.targetValue;
-    let idType = condition.idType;
+    const field = condition.field;
+    const target = condition.targetValue;
+    const idType = condition.idType;
     switch (condition.type.toLowerCase()) {
       case 'public':
         return { passes: true };
       case 'fail_gate':
-      case 'pass_gate':
+      case 'pass_gate': {
         const gateResult = this._evalConfigSpec(
           user,
           this.featureGates[target as string],
         );
         value = gateResult?.value;
 
-        let allExposures = gateResult?.secondary_exposures ?? [];
+        const allExposures = gateResult?.secondary_exposures ?? [];
         allExposures.push({
           gate: String(target),
           gateValue: String(value),
@@ -279,6 +279,7 @@ export default class Evaluator {
             condition.type.toLowerCase() === 'fail_gate' ? !value : !!value,
           exposures: allExposures,
         };
+      }
       case 'ip_based':
         // this would apply to things like 'country', 'region', etc.
         throw new StatsigUnsupportedEvaluationError(
@@ -294,25 +295,28 @@ export default class Evaluator {
         break;
       case 'environment_field':
         value = getFromEnvironment(user, field);
+        break;
       case 'current_time':
         value = Date.now();
         break;
-      case 'user_bucket':
+      case 'user_bucket': {
         const salt = condition.additionalValues?.salt;
         const userHash = computeUserHash(
           salt + '.' + this._getUnitID(user, idType) ?? '',
         );
         value = Number(userHash % BigInt(USER_BUCKET_COUNT));
         break;
+      }
       case 'unit_id':
         value = this._getUnitID(user, idType);
         break;
-      case 'javascript':
+      case 'javascript': {
         const js = condition.additionalValues?.javascript;
         if (js !== null) {
           value = eval(js as string);
         }
         break;
+      }
       default:
         throw new StatsigUnsupportedEvaluationError(
           'Unsupported condition: ' + condition.type,
