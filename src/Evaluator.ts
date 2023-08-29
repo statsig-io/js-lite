@@ -499,7 +499,7 @@ export default class Evaluator {
 }
 
 function computeUserHash(userHash: string) {
-  const buffer = sha256create().update(userHash).arrayBuffer();
+  const buffer = sha256create().update(userHash).array();
   const ab = new ArrayBuffer(buffer.length);
   const view = new Uint8Array(ab);
   for (let ii = 0; ii < buffer.length; ii++) {
