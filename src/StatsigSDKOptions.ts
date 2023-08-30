@@ -8,11 +8,7 @@ export type StatsigEnvironment = {
   [key: string]: string | undefined;
 };
 
-export type SynchronousStatsigOptions = Omit<StatsigOptions, 'initTimeoutMs'> & {
-  initializeValues: Record<string, any>; // required for synchronous initialization
-};
-
-export type StatsigOptions = {
+type CommonOptions = {
   configSpecAPI?: string;
   eventLoggingAPI?: string;
   disableCurrentPageLogging?: boolean;
@@ -22,9 +18,16 @@ export type StatsigOptions = {
   disableNetworkKeepalive?: boolean;
   overrideStableID?: string;
   localMode?: boolean;
-  initTimeoutMs?: number;
   disableLocalStorage?: boolean;
   ignoreWindowUndefined?: boolean;
+}
+
+export type StatsigOptions = CommonOptions & {
+  initTimeoutMs?: number;
+};
+
+export type SynchronousStatsigOptions = CommonOptions & {
+  initializeValues: Record<string, any>; // required for synchronous initialization
 };
 
 type BoundedNumberInput = {
@@ -76,14 +79,25 @@ export default class StatsigSDKOptions {
     this.disableNetworkKeepalive = options.disableNetworkKeepalive ?? false;
     this.overrideStableID = options.overrideStableID ?? null;
     this.localMode = options.localMode ?? false;
-    this.initTimeoutMs =
-      options.initTimeoutMs && options.initTimeoutMs >= 0
-        ? options.initTimeoutMs
-        : INIT_TIMEOUT_DEFAULT_MS;
-    this.initializeValues = options.initializeValues ?? null;
+    
+    
+    
     
     this.disableLocalStorage = options.disableLocalStorage ?? false;
     this.ignoreWindowUndefined = options?.ignoreWindowUndefined ?? false;
+
+    this.initTimeoutMs = INIT_TIMEOUT_DEFAULT_MS;
+    if ((options as StatsigOptions).initTimeoutMs != null) {
+      const statsigOptions = options as StatsigOptions;
+      this.initTimeoutMs =
+      statsigOptions.initTimeoutMs && statsigOptions.initTimeoutMs >= 0
+        ? statsigOptions.initTimeoutMs
+        : INIT_TIMEOUT_DEFAULT_MS;
+    }
+    this.initializeValues = null;
+    if ((options as SynchronousStatsigOptions).initializeValues != null) {
+      this.initializeValues = (options as SynchronousStatsigOptions).initializeValues;
+    }
   }
 
   private normalizeAPI(
