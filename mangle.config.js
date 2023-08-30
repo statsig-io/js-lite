@@ -4,6 +4,7 @@ module.exports = {
     'statsig',
     'Statsig',
     'initialize',
+    'initializeAsync',
     'checkGate',
     'manuallyLogGateExposure',
     'getConfig',
