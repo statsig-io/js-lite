@@ -1,4 +1,3 @@
-
 import ConfigEvaluation from './ConfigEvaluation';
 import { ConfigCondition, ConfigRule, ConfigSpec } from './ConfigSpec';
 import { StatsigUnsupportedEvaluationError } from './Errors';
@@ -25,9 +24,9 @@ export default class Evaluator {
     dynamicConfigs: Array<Record<string, unknown>>,
     layerConfigs: Array<Record<string, unknown>>,
   ) {
-    let updatedGates: Record<string, ConfigSpec> = {};
-    let updatedConfigs: Record<string, ConfigSpec> = {};
-    let updatedLayers: Record<string, ConfigSpec> = {};
+    const updatedGates: Record<string, ConfigSpec> = {};
+    const updatedConfigs: Record<string, ConfigSpec> = {};
+    const updatedLayers: Record<string, ConfigSpec> = {};
     if (
       !Array.isArray(featureGates) ||
       !Array.isArray(dynamicConfigs) ||
@@ -86,7 +85,10 @@ export default class Evaluator {
     return res;
   }
 
-  private _evalConfigSpec(user: StatsigUser, config: ConfigSpec | null): ConfigEvaluation {
+  private _evalConfigSpec(
+    user: StatsigUser,
+    config: ConfigSpec | null,
+  ): ConfigEvaluation {
     if (!config) {
       return new ConfigEvaluation(false, '').withEvaluationReason(
         EvaluationReason.Unrecognized,
@@ -94,9 +96,7 @@ export default class Evaluator {
     }
 
     const evaulation = this._eval(user, config);
-    return evaulation.withEvaluationReason(
-      EvaluationReason.Network,
-    );
+    return evaulation.withEvaluationReason(EvaluationReason.Network);
   }
 
   private _eval(user: StatsigUser, config: ConfigSpec): ConfigEvaluation {
@@ -112,13 +112,13 @@ export default class Evaluator {
     let secondary_exposures: Record<string, string>[] = [];
     try {
       for (let i = 0; i < config.rules.length; i++) {
-        let rule = config.rules[i];
+        const rule = config.rules[i];
         const ruleResult = this._evalRule(user, rule);
-  
+
         secondary_exposures = secondary_exposures.concat(
           ruleResult.secondary_exposures,
         );
-  
+
         if (ruleResult.value === true) {
           const delegatedResult = this._evalDelegate(
             user,
@@ -128,7 +128,7 @@ export default class Evaluator {
           if (delegatedResult) {
             return delegatedResult;
           }
-  
+
           const pass = this._evalPassPercent(user, rule, config);
           const evaluation = new ConfigEvaluation(
             pass,
@@ -144,7 +144,7 @@ export default class Evaluator {
           return evaluation;
         }
       }
-    } catch(e: unknown) {
+    } catch (e: unknown) {
       if (e instanceof StatsigUnsupportedEvaluationError) {
         return new ConfigEvaluation(
           false,
@@ -152,7 +152,7 @@ export default class Evaluator {
           secondary_exposures,
           config.defaultValue as Record<string, unknown>,
           config.explicitParameters,
-        ).withEvaluationReason(EvaluationReason.Unsupported)
+        ).withEvaluationReason(EvaluationReason.Unsupported);
       } else {
         // other error, let error boundary handle this
         throw e;
@@ -192,7 +192,11 @@ export default class Evaluator {
     return delegatedResult;
   }
 
-  private _evalPassPercent(user: StatsigUser, rule: ConfigRule, config: ConfigSpec) {
+  private _evalPassPercent(
+    user: StatsigUser,
+    rule: ConfigRule,
+    config: ConfigSpec,
+  ) {
     if (rule.passPercentage === 100) {
       return true;
     } else if (rule.passPercentage === 0) {
@@ -200,10 +204,10 @@ export default class Evaluator {
     }
     const hash = computeUserHash(
       config.salt +
-      '.' +
-      (rule.salt ?? rule.id) +
-      '.' +
-      (this._getUnitID(user, rule.idType) ?? ''),
+        '.' +
+        (rule.salt ?? rule.id) +
+        '.' +
+        (this._getUnitID(user, rule.idType) ?? ''),
     );
     return (
       Number(hash % BigInt(CONDITION_SEGMENT_COUNT)) < rule.passPercentage * 100
@@ -249,18 +253,21 @@ export default class Evaluator {
     condition: ConfigCondition,
   ): { passes: boolean; fetchFromServer?: boolean; exposures?: any[] } {
     let value: unknown | null = null;
-    let field = condition.field;
-    let target = condition.targetValue;
-    let idType = condition.idType;
+    const field = condition.field;
+    const target = condition.targetValue;
+    const idType = condition.idType;
     switch (condition.type.toLowerCase()) {
       case 'public':
         return { passes: true };
       case 'fail_gate':
-      case 'pass_gate':
-        const gateResult = this._evalConfigSpec(user, this.featureGates[target as string]);
+      case 'pass_gate': {
+        const gateResult = this._evalConfigSpec(
+          user,
+          this.featureGates[target as string],
+        );
         value = gateResult?.value;
 
-        let allExposures = gateResult?.secondary_exposures ?? [];
+        const allExposures = gateResult?.secondary_exposures ?? [];
         allExposures.push({
           gate: String(target),
           gateValue: String(value),
@@ -272,38 +279,48 @@ export default class Evaluator {
             condition.type.toLowerCase() === 'fail_gate' ? !value : !!value,
           exposures: allExposures,
         };
+      }
       case 'ip_based':
         // this would apply to things like 'country', 'region', etc.
-        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
+        throw new StatsigUnsupportedEvaluationError(
+          'Unsupported condition: ' + condition.type,
+        );
       case 'ua_based':
         // this would apply to things like 'os', 'browser', etc.
-        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
+        throw new StatsigUnsupportedEvaluationError(
+          'Unsupported condition: ' + condition.type,
+        );
       case 'user_field':
         value = getFromUser(user, field);
         break;
       case 'environment_field':
         value = getFromEnvironment(user, field);
+        break;
       case 'current_time':
         value = Date.now();
         break;
-      case 'user_bucket':
+      case 'user_bucket': {
         const salt = condition.additionalValues?.salt;
         const userHash = computeUserHash(
           salt + '.' + this._getUnitID(user, idType) ?? '',
         );
         value = Number(userHash % BigInt(USER_BUCKET_COUNT));
         break;
+      }
       case 'unit_id':
         value = this._getUnitID(user, idType);
         break;
-      case 'javascript':
+      case 'javascript': {
         const js = condition.additionalValues?.javascript;
         if (js !== null) {
           value = eval(js as string);
         }
         break;
+      }
       default:
-        throw new StatsigUnsupportedEvaluationError('Unsupported condition: ' + condition.type);
+        throw new StatsigUnsupportedEvaluationError(
+          'Unsupported condition: ' + condition.type,
+        );
     }
 
     const op = condition.operator?.toLowerCase();
@@ -453,10 +470,16 @@ export default class Evaluator {
 
       // dates
       case 'before':
-        evalResult = dateCompare((a, b) => a < b)(value as string, target as string);
+        evalResult = dateCompare((a, b) => a < b)(
+          value as string,
+          target as string,
+        );
         break;
       case 'after':
-        evalResult = dateCompare((a, b) => a > b)(value as string, target as string);
+        evalResult = dateCompare((a, b) => a > b)(
+          value as string,
+          target as string,
+        );
         break;
       case 'on':
         evalResult = dateCompare((a, b) => {
@@ -467,27 +490,29 @@ export default class Evaluator {
         break;
       case 'in_segment_list':
       case 'not_in_segment_list':
-        throw new StatsigUnsupportedEvaluationError('Unsupported condition operator: ' + op);
+        throw new StatsigUnsupportedEvaluationError(
+          'Unsupported condition operator: ' + op,
+        );
       default:
-        throw new StatsigUnsupportedEvaluationError('Unsupported condition operator: ' + op);
+        throw new StatsigUnsupportedEvaluationError(
+          'Unsupported condition operator: ' + op,
+        );
     }
     return { passes: evalResult };
   }
 }
 
-function stringToBytes(str: String) {
-  const bytes = new Uint8Array(str.length);
-  for (let i = 0; i < str.length; i++) {
-    bytes[i] = str.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
 function computeUserHash(userHash: string) {
-  const buffer = sha256create().update(userHash).arrayBuffer();
-  const view = new DataView(buffer);
-  const bigInt = view.getBigUint64(0, false);
-  return bigInt;
+  const buffer = sha256create().update(userHash).array();
+  const ab = new ArrayBuffer(buffer.length);
+  const view = new Uint8Array(ab);
+  for (let ii = 0; ii < buffer.length; ii++) {
+    view[ii] = buffer[ii];
+  }
+
+  const dv = new DataView(ab);
+  const hash = dv.getBigUint64(0, false);
+  return hash;
 }
 
 function getFromEnvironment(user: StatsigUser, field: string) {
@@ -510,7 +535,6 @@ function getParameterCaseInsensitive(
   }
   return object[keyMatch];
 }
-
 
 function getFromUser(user: StatsigUser, field: string): any | null {
   if (typeof user !== 'object' || user == null) {
@@ -559,8 +583,16 @@ function versionCompareHelper(
 // Compare two version strings without the extensions.
 // returns -1, 0, or 1 if first is smaller than, equal to, or larger than second.
 // returns false if any of the version strings is not valid.
-function versionCompare(first: string | null, second: string | null): number | null {
-  if (first == null || second == null || typeof first !== 'string' || typeof second !== 'string') {
+function versionCompare(
+  first: string | null,
+  second: string | null,
+): number | null {
+  if (
+    first == null ||
+    second == null ||
+    typeof first !== 'string' ||
+    typeof second !== 'string'
+  ) {
     return null;
   }
   const version1 = removeVersionExtension(first);

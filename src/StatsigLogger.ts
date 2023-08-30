@@ -1,13 +1,12 @@
 import ErrorBoundary from './ErrorBoundary';
+import { EvaluationDetails } from './EvaluationMetadata';
 import type { LogEvent } from './LogEvent';
 import makeLogEvent from './LogEvent';
 import Identity from './StatsigIdentity';
 import StatsigNetwork, { StatsigEndpoint } from './StatsigNetwork';
 import StatsigSDKOptions from './StatsigSDKOptions';
-import { EvaluationDetails } from './EvaluationMetadata';
 import { StatsigUser } from './StatsigUser';
 import { STATSIG_LOCAL_STORAGE_LOGGING_REQUEST_KEY } from './utils/Constants';
-import Diagnostics from './utils/Diagnostics';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 
 const INTERNAL_EVENT_PREFIX = 'statsig::';
@@ -78,7 +77,7 @@ export default class StatsigLogger {
           event.statsigMetadata.currentPage = parts[0];
         }
       }
-    } catch (_e) { }
+    } catch (_e) {}
 
     this._queue.push(event);
 
@@ -101,7 +100,7 @@ export default class StatsigLogger {
     isManualExposure: boolean,
   ) {
     const dedupeKey = gateName + String(gateValue) + ruleID + details.reason;
-    if (!this._shouldLogExposure(dedupeKey)) {
+    if (!this._shouldLogExposure(user, dedupeKey)) {
       return;
     }
 
@@ -137,7 +136,7 @@ export default class StatsigLogger {
     isManualExposure: boolean,
   ) {
     const dedupeKey = configName + ruleID + details.reason;
-    if (!this._shouldLogExposure(dedupeKey)) {
+    if (!this._shouldLogExposure(user, dedupeKey)) {
       return;
     }
 
@@ -183,7 +182,7 @@ export default class StatsigLogger {
       details.reason,
     ].join('|');
 
-    if (!this._shouldLogExposure(dedupeKey)) {
+    if (!this._shouldLogExposure(user, dedupeKey)) {
       return;
     }
 
@@ -414,7 +413,13 @@ export default class StatsigLogger {
     setTimeout(() => this.flush(), 1000);
   }
 
-  private _shouldLogExposure(key: string): boolean {
+  private _shouldLogExposure(user: StatsigUser, exposureKey: string): boolean {
+    let customIdKey = '';
+    if (user.customIDs && typeof user.customIDs === 'object') {
+      customIdKey = Object.values(user.customIDs).join();
+    }
+
+    const key = [user.userID, customIdKey, exposureKey].join('|');
     const lastTime = this._exposureDedupeKeys[key];
     const now = Date.now();
     if (lastTime == null) {

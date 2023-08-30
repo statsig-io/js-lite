@@ -57,9 +57,7 @@ export default class StatsigNetwork {
     this._init();
   }
 
-  public fetchValues(
-    timeout: number,
-  ): PromiseWithTimeout<Record<string, any>> {
+  public fetchValues(timeout: number): PromiseWithTimeout<Record<string, any>> {
     return this._postWithTimeout(
       StatsigEndpoint.DownloadConfigSpecs,
       null,
@@ -128,7 +126,9 @@ export default class StatsigNetwork {
     const statsigMetadata = this._identity._statsigMetadata;
 
     const params: RequestInit = {
-      method: endpointName.includes(StatsigEndpoint.DownloadConfigSpecs) ? 'GET' : 'POST',
+      method: endpointName.includes(StatsigEndpoint.DownloadConfigSpecs)
+        ? 'GET'
+        : 'POST',
       body: body === null ? undefined : JSON.stringify(body),
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
@@ -138,7 +138,6 @@ export default class StatsigNetwork {
         'STATSIG-SDK-VERSION': statsigMetadata.sdkVersion,
       },
     };
-
 
     if (this.canUseKeepalive && useKeepalive) {
       params.keepalive = true;
@@ -194,7 +193,7 @@ export default class StatsigNetwork {
     if (!this._options.disableNetworkKeepalive) {
       try {
         this.canUseKeepalive = 'keepalive' in new Request('');
-      } catch (_e) { }
+      } catch (_e) {}
     }
   }
 

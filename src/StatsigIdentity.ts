@@ -19,14 +19,11 @@ export default class Identity {
   readonly _sdkKey: string;
   readonly _statsigMetadata: StatsigMetadata;
 
-  private _sdkType: string = 'local-eval-js';
+  private _sdkType = 'js-local-eval';
 
   private readonly _sdkVersion: string;
 
-  constructor(
-    sdkKey: string,
-    overrideStableID?: string | null,
-  ) {
+  constructor(sdkKey: string, overrideStableID?: string | null) {
     this._sdkKey = sdkKey;
     this._sdkVersion = SDKVersion;
 
