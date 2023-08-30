@@ -44,7 +44,7 @@ describe('Layer Exposure Logging', () => {
        an_int: 99,
     };
 
-    await Statsig.initialize('client-key');
+    await Statsig.initializeAsync('client-key');
 
     let layer = Statsig.getLayer({}, 'layer');
     layer.get('an_int', '');
@@ -57,7 +57,7 @@ describe('Layer Exposure Logging', () => {
 
   describe.each([['getValue'], ['get']])('with method "%s"', (method) => {
     it('does not log a non-existent key', async () => {
-      await Statsig.initialize('client-key', null);
+      await Statsig.initializeAsync('client-key', null);
 
       let layer = Statsig.getLayer({userID: 'tore'}, 'layer') as unknown as Indexable;
       layer[method]('a_nonexistant_key', 0);
@@ -69,7 +69,7 @@ describe('Layer Exposure Logging', () => {
     });
 
     it('logs layers without an allocated experiment correctly', async () => {
-      await Statsig.initialize('client-key');
+      await Statsig.initializeAsync('client-key');
 
       let layer = Statsig.getLayer({userID: 'xin'}, 'layer') as unknown as Indexable;
       expect(layer[method]('an_int', 0)).toEqual(8);
@@ -95,7 +95,7 @@ describe('Layer Exposure Logging', () => {
     });
 
     it('logs explicit and implicit parameters correctly', async () => {
-      await Statsig.initialize('client-key');
+      await Statsig.initializeAsync('client-key');
 
       let layer = Statsig.getLayer({userID: 'xin', email: 'support@statsig.com'}, 'layer') as unknown as Indexable;
       layer[method]('an_int', 0);
@@ -151,7 +151,7 @@ describe('Layer Exposure Logging', () => {
         an_object: { key: 'value' },
       };
 
-      await Statsig.initialize('client-key', null);
+      await Statsig.initializeAsync('client-key', null);
 
       let layer = Statsig.getLayer({userID: "tore"}, 'layer') as unknown as Indexable;
       layer[method]('a_bool', false);
@@ -183,7 +183,7 @@ describe('Layer Exposure Logging', () => {
     });
 
     it('does not log when shutdown', async () => {
-      await Statsig.initialize('client-key', null);
+      await Statsig.initializeAsync('client-key', null);
 
       let layer = Statsig.getLayer({userID: "xin"}, 'layer') as unknown as Indexable;
       Statsig.shutdown();

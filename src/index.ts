@@ -2,7 +2,7 @@ import DynamicConfig from './DynamicConfig';
 import { StatsigUninitializedError } from './Errors';
 import Layer from './Layer';
 import StatsigClient, { CheckGateOptions, GetExperimentOptions, GetLayerOptions } from './StatsigClient';
-import { StatsigOptions } from './StatsigSDKOptions';
+import { SynchronousStatsigOptions, StatsigOptions } from './StatsigSDKOptions';
 import { EvaluationDetails, EvaluationReason } from './EvaluationMetadata';
 import { StatsigUser } from './StatsigUser';
 
@@ -15,7 +15,7 @@ export { StatsigUser } from './StatsigUser';
 export default class Statsig {
   private static instance: StatsigClient | null = null;
 
-  public static async initialize(
+  public static async initializeAsync(
     sdkKey: string,
     options?: StatsigOptions | null,
   ): Promise<void> {
@@ -26,6 +26,18 @@ export default class Statsig {
     }
 
     return inst.initializeAsync();
+  }
+
+  public static initialize(
+    sdkKey: string,
+    options: SynchronousStatsigOptions,
+  ): void {
+    const inst = Statsig.instance ?? new StatsigClient(sdkKey, options);
+
+    if (!Statsig.instance) {
+      Statsig.instance = inst;
+    }
+    inst.initialize(options.initializeValues);
   }
 
   // Gate

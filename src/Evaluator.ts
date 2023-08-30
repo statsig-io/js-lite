@@ -20,14 +20,14 @@ export default class Evaluator {
     this.layerConfigs = {};
   }
 
-  public setConfigSpecs(
-    featureGates: Array<Record<string, unknown>>,
-    dynamicConfigs: Array<Record<string, unknown>>,
-    layerConfigs: Array<Record<string, unknown>>,
-  ) {
+  public setConfigSpecs(values: Record<string, unknown>) {
     let updatedGates: Record<string, ConfigSpec> = {};
     let updatedConfigs: Record<string, ConfigSpec> = {};
     let updatedLayers: Record<string, ConfigSpec> = {};
+    const featureGates = values.feature_gates;
+    const dynamicConfigs = values.dynamic_configs;
+    const layerConfigs = values.layer_configs;
+    
     if (
       !Array.isArray(featureGates) ||
       !Array.isArray(dynamicConfigs) ||

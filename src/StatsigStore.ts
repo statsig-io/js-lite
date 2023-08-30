@@ -29,6 +29,10 @@ export default class StatsigStore {
     this.loadFromLocalStorage();
   }
 
+  public setInitializeValues(initializeValues: Record<string, unknown>): void {
+    this.evaluator.setConfigSpecs(initializeValues);
+  }
+
   private loadFromLocalStorage(): void {
     // TODO-HACK @tore
     this.loaded = true;
@@ -64,16 +68,7 @@ export default class StatsigStore {
   public async save(
     jsonConfigs: Record<string, any>,
   ): Promise<void> {
-    const featureGates = jsonConfigs.feature_gates as Array<Record<string, unknown>>;
-    const dynamicConfigs = jsonConfigs.dynamic_configs as Array<Record<string, unknown>>;
-    const layerConfigs = jsonConfigs.layer_configs as Array<Record<string, unknown>>;
-    const layerMapping = jsonConfigs.layer_configs as Record<string, Array<String>>;
-
-    const updated = this.evaluator.setConfigSpecs(
-      featureGates,
-      dynamicConfigs,
-      layerConfigs,
-    );
+    const updated = this.evaluator.setConfigSpecs(jsonConfigs);
     if (updated) {
       this.lcut = jsonConfigs.time ?? 0;
     }

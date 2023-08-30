@@ -8,6 +8,10 @@ export type StatsigEnvironment = {
   [key: string]: string | undefined;
 };
 
+export type SynchronousStatsigOptions = Omit<StatsigOptions, 'initTimeoutMs'> & {
+  initializeValues: Record<string, any>; // required for synchronous initialization
+};
+
 export type StatsigOptions = {
   configSpecAPI?: string;
   eventLoggingAPI?: string;
@@ -19,7 +23,6 @@ export type StatsigOptions = {
   overrideStableID?: string;
   localMode?: boolean;
   initTimeoutMs?: number;
-  initializeValues?: Record<string, any> | null;
   disableLocalStorage?: boolean;
   ignoreWindowUndefined?: boolean;
 };
@@ -45,7 +48,7 @@ export default class StatsigSDKOptions {
   readonly disableLocalStorage: boolean;
   readonly ignoreWindowUndefined: boolean;
 
-  constructor(options?: StatsigOptions | null) {
+  constructor(options?: SynchronousStatsigOptions | StatsigOptions | null) {
     if (options == null) {
       options = {};
     }

@@ -34,7 +34,7 @@ describe('ExposureLogging', () => {
 
     // @ts-ignore
     Statsig.instance = null;
-    await Statsig.initialize(
+    await Statsig.initializeAsync(
       'client-key',
       { initTimeoutMs: 1 },
     );
