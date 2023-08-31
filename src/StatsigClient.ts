@@ -10,10 +10,7 @@ import StatsigIdentity from './StatsigIdentity';
 import StatsigLogger from './StatsigLogger';
 import StatsigNetwork from './StatsigNetwork';
 import StatsigSDKOptions, { SynchronousStatsigOptions, StatsigOptions } from './StatsigSDKOptions';
-import {
-  EvaluationDetails,
-  EvaluationReason,
-} from './EvaluationMetadata';
+import { EvaluationDetails, EvaluationReason } from './EvaluationMetadata';
 import StatsigStore from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
@@ -22,17 +19,17 @@ import makeLogEvent from './LogEvent';
 import ConfigEvaluation from './ConfigEvaluation';
 
 export type CheckGateOptions = {
-  disableExposureLogging: boolean,
+  disableExposureLogging: boolean;
 };
 
 export type GetExperimentOptions = {
-  disableExposureLogging: boolean,
-  enablePersistantEvaluation: boolean,
-  override: unknown,
+  disableExposureLogging: boolean;
+  enablePersistantEvaluation: boolean;
+  override: unknown;
 };
 
 export type GetLayerOptions = {
-  disableExposureLogging: boolean,
+  disableExposureLogging: boolean;
 };
 
 export default class StatsigClient {
@@ -56,6 +53,8 @@ export default class StatsigClient {
       options?.localMode !== true &&
       (typeof sdkKey !== 'string')
     ) {
+  public constructor(sdkKey: string, options?: StatsigOptions | null) {
+    if (options?.localMode !== true && typeof sdkKey !== 'string') {
       throw new StatsigInvalidArgumentError(
         'Invalid key provided.  You must use a Client SDK Key from the Statsig console to initialize the sdk',
       );
@@ -80,9 +79,7 @@ export default class StatsigClient {
       this._network,
       this._errorBoundary,
     );
-    this._store = new StatsigStore(
-      this._identity,
-    );
+    this._store = new StatsigStore(this._identity);
 
     this._errorBoundary._setStatsigMetadata(this._identity._statsigMetadata);
 
@@ -178,15 +175,16 @@ export default class StatsigClient {
    * @returns {boolean} - value of a gate for the user. Gates are "off" (return false) by default
    * @throws Error if initialize() is not called first, or gateName is not a string
    */
-  public checkGate(user: StatsigUser, gateName: string, options?: CheckGateOptions): boolean {
+  public checkGate(
+    user: StatsigUser,
+    gateName: string,
+    options?: CheckGateOptions,
+  ): boolean {
     const normalizedUser = this._normalizeUser(user);
     return this._checkGateImpl(normalizedUser, gateName, options);
   }
 
-  public logGateExposure(
-    user: StatsigUser,
-    gateName: string,
-  ) {
+  public logGateExposure(user: StatsigUser, gateName: string) {
     this._errorBoundary._swallow('logGateExposure', () => {
       const normalizedUser = this._normalizeUser(user);
       this._logGateExposureImpl(normalizedUser, gateName);
@@ -199,10 +197,7 @@ export default class StatsigClient {
    * @returns {DynamicConfig} - value of a config for the user
    * @throws Error if initialize() is not called first, or configName is not a string
    */
-  public getConfig(
-    user: StatsigUser,
-    configName: string,
-  ): DynamicConfig {
+  public getConfig(user: StatsigUser, configName: string): DynamicConfig {
     const normalizedUser = this._normalizeUser(user);
     return this._getConfigImpl(normalizedUser, configName);
   }
@@ -214,7 +209,11 @@ export default class StatsigClient {
     });
   }
 
-  public getExperiment(user: StatsigUser, experimentName: string, options?: GetExperimentOptions): DynamicConfig {
+  public getExperiment(
+    user: StatsigUser,
+    experimentName: string,
+    options?: GetExperimentOptions,
+  ): DynamicConfig {
     const normalizedUser = this._normalizeUser(user);
     return this._getConfigImpl(normalizedUser, experimentName, options);
   }
@@ -229,12 +228,15 @@ export default class StatsigClient {
     layerName: string,
     options?: GetLayerOptions,
   ): Layer {
-    
     const normalizedUser = this._normalizeUser(user);
     return this._getLayerImpl(normalizedUser, layerName, options);
   }
 
-  public logLayerParameterExposure(user: StatsigUser, layerName: string, parameterName: string) {
+  public logLayerParameterExposure(
+    user: StatsigUser,
+    layerName: string,
+    parameterName: string,
+  ) {
     this._errorBoundary._swallow('logLayerParameterExposure', () => {
       const normalizedUser = this._normalizeUser(user);
       const layer = this._getLayerFromStore(normalizedUser, null, layerName);
@@ -352,7 +354,7 @@ export default class StatsigClient {
     options?: CheckGateOptions,
   ) {
     return this._errorBoundary._capture(
-      "checkGate",
+      'checkGate',
       () => {
         const result = this._getGateFromStore(user, gateName);
         if (!options?.disableExposureLogging) {
@@ -364,7 +366,10 @@ export default class StatsigClient {
     );
   }
 
-  private _getGateFromStore(user: StatsigUser, gateName: string): ConfigEvaluation {
+  private _getGateFromStore(
+    user: StatsigUser,
+    gateName: string,
+  ): ConfigEvaluation {
     this._ensureStoreLoaded();
     if (typeof gateName !== 'string' || gateName.length === 0) {
       throw new StatsigInvalidArgumentError(
@@ -411,7 +416,10 @@ export default class StatsigClient {
     );
   }
 
-  private _getConfigFromStore(user: StatsigUser, configName: string): DynamicConfig {
+  private _getConfigFromStore(
+    user: StatsigUser,
+    configName: string,
+  ): DynamicConfig {
     this._ensureStoreLoaded();
     if (typeof configName !== 'string' || configName.length === 0) {
       throw new StatsigInvalidArgumentError(
@@ -430,7 +438,11 @@ export default class StatsigClient {
     );
   }
 
-  private _logConfigExposureImpl(user: StatsigUser, configName: string, config?: DynamicConfig) {
+  private _logConfigExposureImpl(
+    user: StatsigUser,
+    configName: string,
+    config?: DynamicConfig,
+  ) {
     const isManualExposure = !config;
     const localConfig = config ?? this._getConfigFromStore(user, configName);
 
@@ -473,16 +485,21 @@ export default class StatsigClient {
     options?: GetLayerOptions,
   ) {
     return this._errorBoundary._capture(
-      "getLayer",
+      'getLayer',
       () => {
-        const logFunc =
-          options?.disableExposureLogging
-            ? null
-            : this._logLayerParameterExposureForLayer;
+        const logFunc = options?.disableExposureLogging
+          ? null
+          : this._logLayerParameterExposureForLayer;
         return this._getLayerFromStore(user, logFunc, layerName);
       },
       () =>
-        Layer._create(user, layerName, {}, '', this._getEvaluationDetailsForError()),
+        Layer._create(
+          user,
+          layerName,
+          {},
+          '',
+          this._getEvaluationDetailsForError(),
+        ),
     );
   }
 
@@ -508,24 +525,23 @@ export default class StatsigClient {
       result.secondary_exposures,
       result.undelegated_secondary_exposures,
       result.config_delegate,
-      result.explicit_parameters ?? []
+      result.explicit_parameters ?? [],
     );
   }
 
   private _logLayerParameterExposureForLayer = (
     layer: Layer,
     parameterName: string,
-    isManualExposure: boolean = false,
+    isManualExposure = false,
   ) => {
-    let allocatedExperiment: string | null = null;
+    let allocatedExperiment = '';
     let exposures = layer._undelegatedSecondaryExposures;
     const isExplicit = layer._explicitParameters.includes(parameterName);
     if (isExplicit) {
-      allocatedExperiment = layer._allocatedExperimentName;
+      allocatedExperiment = layer._allocatedExperimentName ?? '';
       exposures = layer._secondaryExposures;
     }
 
-    
     this._logger.logLayerExposure(
       layer._user,
       layer._name,

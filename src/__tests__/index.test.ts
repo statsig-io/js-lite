@@ -140,7 +140,7 @@ describe('Verify behavior of top level index functions', () => {
         const spy = jest.spyOn(statsig.instance._logger, 'log');
         let gateExposure = makeLogEvent(
           'statsig::gate_exposure',
-          expect.objectContaining({email: 'test@statsig.com'}),
+          expect.objectContaining({ email: 'test@statsig.com' }),
           (statsig as any).instance._identity._statsigMetadata,
           null,
           {
@@ -153,7 +153,10 @@ describe('Verify behavior of top level index functions', () => {
           [],
         );
 
-        const gateValue = statsig.checkGate({email: 'test@statsig.com'}, 'test_gate');
+        const gateValue = statsig.checkGate(
+          { email: 'test@statsig.com' },
+          'test_gate',
+        );
         expect(gateValue).toBe(true);
         expect(spy).toHaveBeenCalledTimes(1);
         expect(spy).toHaveBeenCalledWith(gateExposure);
@@ -457,7 +460,7 @@ describe('Verify behavior of top level index functions', () => {
           userID: '12345',
           country: 'US',
           custom: { key: 'value' },
-          email: "test@statsig.com",
+          email: 'test@statsig.com',
         }),
         statsigMetadata: expect.any(Object),
         time: expect.any(Number),
@@ -478,7 +481,7 @@ describe('Verify behavior of top level index functions', () => {
           userID: '12345',
           country: 'US',
           custom: { key: 'value' },
-          email: "test@statsig.com",
+          email: 'test@statsig.com',
         }),
         statsigMetadata: expect.any(Object),
         time: expect.any(Number),
@@ -495,7 +498,7 @@ describe('Verify behavior of top level index functions', () => {
           userID: '12345',
           country: 'US',
           custom: { key: 'value' },
-          email: "test@statsig.com",
+          email: 'test@statsig.com',
         }),
         statsigMetadata: expect.any(Object),
         time: expect.any(Number),
@@ -508,7 +511,7 @@ describe('Verify behavior of top level index functions', () => {
 
     expect(postedLogs['statsigMetadata']).toEqual(
       expect.objectContaining({
-        sdkType: 'local-eval-js',
+        sdkType: 'js-local-eval',
         sdkVersion: expect.any(String),
         stableID: expect.any(String),
       }),
