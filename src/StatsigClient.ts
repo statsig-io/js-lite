@@ -45,14 +45,6 @@ export default class StatsigClient {
   readonly _logger: StatsigLogger;
   readonly _options: StatsigSDKOptions;
 
-  public constructor(
-    sdkKey: string,
-    options?: SynchronousStatsigOptions | StatsigOptions | null,
-  ) {
-    if (
-      options?.localMode !== true &&
-      (typeof sdkKey !== 'string')
-    ) {
   public constructor(sdkKey: string, options?: StatsigOptions | null) {
     if (options?.localMode !== true && typeof sdkKey !== 'string') {
       throw new StatsigInvalidArgumentError(
