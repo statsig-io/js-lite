@@ -104,10 +104,9 @@ export default class StatsigNetwork {
       return Promise.reject('window is not defined');
     }
 
-    const api = [StatsigEndpoint.DownloadConfigSpecs].includes(endpointName)
-      ? this._options.configSpecAPI
-      : this._options.eventLoggingAPI;
-    const url = api + endpointName;
+    const url = [StatsigEndpoint.DownloadConfigSpecs].includes(endpointName)
+      ? this._options.configSpecAPI + endpointName + '/' + this._identity._sdkKey + '.json'
+      : this._options.eventLoggingAPI + endpointName;
     const counter = this.leakyBucket[url];
     if (counter != null && counter >= 30) {
       return Promise.reject(
@@ -130,7 +129,7 @@ export default class StatsigNetwork {
         ? 'GET'
         : 'POST',
       body: body === null ? undefined : JSON.stringify(body),
-      headers: {
+      headers: endpointName.includes(StatsigEndpoint.DownloadConfigSpecs) ? {} : {
         'Content-type': 'application/json; charset=UTF-8',
         'STATSIG-API-KEY': this._identity._sdkKey,
         'STATSIG-CLIENT-TIME': Date.now() + '',
