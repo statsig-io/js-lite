@@ -38,7 +38,7 @@ describe('On Default Value Fallback', () => {
   beforeEach(async () => {
     // @ts-ignore
     Statsig.instance = null;
-    await Statsig.initialize('client-key');
+    await Statsig.initializeAsync('client-key');
 
     // @ts-ignore
     Statsig.instance._options.loggingBufferMaxSize = 1;

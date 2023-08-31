@@ -9,7 +9,7 @@ import Layer, { LogParameterFunction } from './Layer';
 import StatsigIdentity from './StatsigIdentity';
 import StatsigLogger from './StatsigLogger';
 import StatsigNetwork from './StatsigNetwork';
-import StatsigSDKOptions, { StatsigOptions } from './StatsigSDKOptions';
+import StatsigSDKOptions, { SynchronousStatsigOptions, StatsigOptions } from './StatsigSDKOptions';
 import { EvaluationDetails, EvaluationReason } from './EvaluationMetadata';
 import StatsigStore from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
@@ -76,10 +76,7 @@ export default class StatsigClient {
     this._errorBoundary._setStatsigMetadata(this._identity._statsigMetadata);
 
     if (this._options.initializeValues != null) {
-      this._ready = true;
-      this._initCalled = true;
-
-      setTimeout(() => this._delayedSetup(), 20);
+      this._delayedSetup();
     }
   }
 
@@ -128,6 +125,23 @@ export default class StatsigClient {
         this._ready = true;
         this._initCalled = true;
         return Promise.resolve();
+      },
+    );
+  }
+
+  public initialize(initializeValues: Record<string, unknown>): void {
+    this._errorBoundary._capture(
+      'initialize',
+      () => {
+        this._ready = true;
+        this._initCalled = true;
+        return this._store.setInitializeValues(initializeValues);
+      },
+      () => {
+        return {
+          time: Date.now(),
+          reason: EvaluationReason.Error,
+        };
       },
     );
   }

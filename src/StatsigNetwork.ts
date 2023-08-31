@@ -75,7 +75,7 @@ export default class StatsigNetwork {
     );
     url.searchParams.append('k', this._identity._sdkKey);
     payload.clientTime = Date.now() + '';
-    let stringPayload = null;
+    let stringPayload: string | null = null;
     try {
       stringPayload = JSON.stringify(payload);
     } catch (_e) {

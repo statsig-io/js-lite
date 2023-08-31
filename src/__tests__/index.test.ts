@@ -62,7 +62,7 @@ describe('Verify behavior of top level index functions', () => {
   });
 
   test('Verify checkGate throws with no gate name', () => {
-    return statsig.initialize('client-key', null).then(() => {
+    return statsig.initializeAsync('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
         statsig.checkGate({});
@@ -71,7 +71,7 @@ describe('Verify behavior of top level index functions', () => {
   });
 
   test('Verify checkGate throws with wrong type as gate name', () => {
-    return statsig.initialize('client-key', null).then(() => {
+    return statsig.initializeAsync('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
         statsig.checkGate({}, false);
@@ -81,7 +81,7 @@ describe('Verify behavior of top level index functions', () => {
 
   test('Verify getConfig() and getExperiment() throw with no config name', () => {
     expect.assertions(2);
-    return statsig.initialize('client-key', null).then(() => {
+    return statsig.initializeAsync('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
         statsig.getConfig({});
@@ -95,7 +95,7 @@ describe('Verify behavior of top level index functions', () => {
 
   test('Verify getConfig and getExperiment() throw with wrong type as config name', () => {
     expect.assertions(2);
-    return statsig.initialize('client-key', null).then(() => {
+    return statsig.initializeAsync('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
         statsig.getConfig({}, 12);
@@ -130,7 +130,7 @@ describe('Verify behavior of top level index functions', () => {
   test('Verify checkGate() returns the correct value under correct circumstances', () => {
     expect.assertions(4);
     return statsig
-      .initialize('client-key', { disableCurrentPageLogging: true })
+      .initializeAsync('client-key')
       .then(() => {
         // @ts-ignore
         const ready = statsig.instance._ready;
@@ -163,9 +163,41 @@ describe('Verify behavior of top level index functions', () => {
       });
   });
 
+  test('Verify checkGate() with synchronous initialization', () => {
+    expect.assertions(4);
+    statsig.initialize('client-key', {
+        initializeValues: TestData
+    });
+    // @ts-ignore
+    const ready = statsig.instance._ready;
+    expect(ready).toBe(true);
+
+    //@ts-ignore
+    const spy = jest.spyOn(statsig.instance._logger, 'log');
+    let gateExposure = makeLogEvent(
+      'statsig::gate_exposure',
+      expect.objectContaining({email: 'test@statsig.com'}),
+      (statsig as any).instance._identity._statsigMetadata,
+      null,
+      {
+        gate: 'test_gate',
+        gateValue: String(true),
+        ruleID: '5NfZsHpOUSn3ts7koLusbK',
+        reason: EvaluationReason.Network,
+        time: Date.now(),
+      },
+      [],
+    );
+
+    const gateValue = statsig.checkGate({email: 'test@statsig.com'}, 'test_gate');
+    expect(gateValue).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(gateExposure);
+  });
+
   test('Initialize rejects invalid SDK Key', () => {
     // @ts-ignore
-    return expect(statsig.initialize()).rejects.toEqual(
+    return expect(statsig.initializeAsync()).rejects.toEqual(
       new Error(
         'Invalid key provided.  You must use a Client SDK Key from the Statsig console to initialize the sdk',
       ),
@@ -176,7 +208,7 @@ describe('Verify behavior of top level index functions', () => {
     expect.assertions(4);
 
     return statsig
-      .initialize('client-key', { disableCurrentPageLogging: true })
+      .initializeAsync('client-key', { disableCurrentPageLogging: true })
       .then(() => {
         // @ts-ignore
         const ready = statsig.instance._ready;
@@ -220,11 +252,57 @@ describe('Verify behavior of top level index functions', () => {
       });
   });
 
+  test('Verify getConfig() with synchronous initialization', () => {
+    expect.assertions(4);
+
+    statsig.initialize('client-key', { initializeValues: TestData });
+
+    // @ts-ignore
+    const ready = statsig.instance._ready;
+      expect(ready).toBe(true);
+
+      //@ts-ignore
+      const spy = jest.spyOn(statsig.instance._logger, 'log');
+
+      const configExposure = makeLogEvent(
+        'statsig::config_exposure',
+        expect.objectContaining({}),
+        (statsig as any).instance._identity._statsigMetadata,
+        null,
+        {
+          config: 'test_config',
+          ruleID: 'default',
+          reason: EvaluationReason.Network,
+          time: Date.now(),
+        },
+        [],
+      );
+
+      const config = statsig.getConfig({}, 'test_config');
+      expect(config?.value).toStrictEqual({
+        bool: true,
+        number: 2,
+        double: 3.1,
+        string: 'string',
+        object: {
+          key: 'value',
+          key2: 123,
+        },
+        boolStr1: 'true',
+        boolStr2: 'FALSE',
+        numberStr1: '3',
+        numberStr2: '3.3',
+        numberStr3: '3.3.3',
+      });
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(configExposure);
+  });
+
   test('Verify getExperiment() behaves correctly when calling under correct conditions', () => {
     expect.assertions(4);
 
     return statsig
-      .initialize('client-key', { disableCurrentPageLogging: true })
+      .initializeAsync('client-key')
       .then(() => {
         // @ts-ignore
         const ready = statsig.instance._ready;
@@ -267,19 +345,74 @@ describe('Verify behavior of top level index functions', () => {
       });
   });
 
-  test('calling initialize() multiple times work as expected', async () => {
+  test('Verify getExperiment() with synchronous initialization', () => {
+    expect.assertions(4);
+
+    statsig.initialize('client-key', { initializeValues: TestData });
+    // @ts-ignore
+    const ready = statsig.instance._ready;
+    expect(ready).toBe(true);
+
+    //@ts-ignore
+    const spy = jest.spyOn(statsig.instance._logger, 'log');
+    const configExposure = makeLogEvent(
+      'statsig::config_exposure',
+      expect.objectContaining({}),
+      (statsig as any).instance._identity._statsigMetadata,
+      null,
+      {
+        config: 'test_config',
+        ruleID: 'default',
+        reason: EvaluationReason.Network,
+        time: Date.now(),
+      },
+      [],
+    );
+
+    const exp = statsig.getExperiment({}, 'test_config');
+    expect(exp?.value).toStrictEqual({
+      bool: true,
+      number: 2,
+      double: 3.1,
+      string: 'string',
+      object: {
+        key: 'value',
+        key2: 123,
+      },
+      boolStr1: 'true',
+      boolStr2: 'FALSE',
+      numberStr1: '3',
+      numberStr2: '3.3',
+      numberStr3: '3.3.3',
+    });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledWith(configExposure);
+  });
+
+  test('calling initializeAsync() multiple times work as expected', async () => {
     expect.assertions(5);
 
     // initialize() twice simultaneously reulsts in 1 promise
-    const v1 = statsig.initialize('client-key');
-    const v2 = statsig.initialize('client-key');
+    const v1 = statsig.initializeAsync('client-key');
+    const v2 = statsig.initializeAsync('client-key');
     await expect(v1).resolves.not.toThrow();
     await expect(v2).resolves.not.toThrow();
     expect(requestCount).toEqual(1);
 
     // initialize() again after the first one completes resolves right away and does not make a new request
-    await expect(statsig.initialize('client-key')).resolves.not.toThrow();
+    await expect(statsig.initializeAsync('client-key')).resolves.not.toThrow();
     expect(requestCount).toEqual(1);
+  });
+
+  test('calling initialize() multiple times work as expected', async () => {
+    expect.assertions(2);
+
+    // initialize() twice sets the initialize values from the second call
+    statsig.initialize('client-key', {initializeValues: {}});
+    statsig.initialize('client-key', {initializeValues: TestData});
+    expect(requestCount).toEqual(0);
+    const gateValue = statsig.checkGate({email: 'test@statsig.com'}, 'test_gate');
+    expect(gateValue).toBe(true);
   });
 
   test('shutdown does flush logs and they are correct', async () => {
@@ -291,7 +424,7 @@ describe('Verify behavior of top level index functions', () => {
       custom: { key: 'value' },
       privateAttributes: { private: 'value' },
     };
-    await statsig.initialize('client-key');
+    await statsig.initializeAsync('client-key');
     expect(statsig.checkGate(user, 'test_gate')).toEqual(true);
     const config = statsig.getConfig(user, 'test_config');
     expect(config?.value).toStrictEqual({
@@ -386,7 +519,10 @@ describe('Verify behavior of top level index functions', () => {
   });
 
   test('set and get stableID', async () => {
-    await statsig.initialize('client-key', { overrideStableID: '666' });
+    await statsig.initializeAsync(
+      'client-key',
+      { overrideStableID: '666' },
+    );
     expect(statsig.getStableID()).toEqual('666');
   });
 });
