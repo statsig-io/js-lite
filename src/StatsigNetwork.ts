@@ -105,6 +105,7 @@ export default class StatsigNetwork {
     }
 
     const url = this.getUrl(endpointName);
+    const isDownloadConfigSpecs = endpointName === StatsigEndpoint.DownloadConfigSpecs;
     const counter = this.leakyBucket[url];
     if (counter != null && counter >= 30) {
       return Promise.reject(
@@ -123,11 +124,11 @@ export default class StatsigNetwork {
     const statsigMetadata = this._identity._statsigMetadata;
 
     const params: RequestInit = {
-      method: endpointName.includes(StatsigEndpoint.DownloadConfigSpecs)
+      method: isDownloadConfigSpecs
         ? 'GET'
         : 'POST',
       body: body === null ? undefined : JSON.stringify(body),
-      headers: endpointName.includes(StatsigEndpoint.DownloadConfigSpecs) ? {} : {
+      headers: isDownloadConfigSpecs ? {} : {
         'Content-type': 'application/json; charset=UTF-8',
         'STATSIG-API-KEY': this._identity._sdkKey,
         'STATSIG-CLIENT-TIME': Date.now() + '',
