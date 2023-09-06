@@ -104,9 +104,7 @@ export default class StatsigNetwork {
       return Promise.reject('window is not defined');
     }
 
-    const url = [StatsigEndpoint.DownloadConfigSpecs].includes(endpointName)
-      ? this._options.configSpecAPI + endpointName + '/' + this._identity._sdkKey + '.json'
-      : this._options.eventLoggingAPI + endpointName;
+    const url = this.getUrl(endpointName);
     const counter = this.leakyBucket[url];
     if (counter != null && counter >= 30) {
       return Promise.reject(
@@ -339,4 +337,16 @@ export default class StatsigNetwork {
       };
     }
   }
+
+  private getUrl(
+    endpointName: StatsigEndpoint,
+  ): string {
+    if ([StatsigEndpoint.DownloadConfigSpecs].includes(endpointName)) {
+      return `${this._options.configSpecAPI}${endpointName}/${this._identity._sdkKey}.json`;
+    } else {
+      return `${this._options.eventLoggingAPI}${endpointName}`;
+    }
+  }
 }
+
+
