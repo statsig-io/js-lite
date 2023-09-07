@@ -47,9 +47,6 @@ describe('Statsig ErrorBoundary Usage', () => {
     // @ts-ignore
     client._errorBoundary.seen = new Set();
     requests = [];
-    // Causes not a function errors
-    // @ts-ignore
-    client._store = { isLoaded: () => true };
     // @ts-ignore
     client._logger = 1;
   });
@@ -57,25 +54,26 @@ describe('Statsig ErrorBoundary Usage', () => {
   it('recovers from errors and returns default gate value', async () => {
     const result = client.checkGate(user, 'a_gate');
     expect(result).toBe(false);
-    expectSingleError('_store.checkGate');
+    expectSingleError('this._logger.logGateExposure');
   });
 
   it('recovers from errors and returns default config value', async () => {
     const result = client.getConfig(user, 'a_config');
     expect(result instanceof DynamicConfig).toBe(true);
-    expectSingleError('_store.getConfig');
+    expectSingleError('this._logger.logConfigExposure');
   });
 
   it('recovers from errors and returns default experiment value', async () => {
     const result = client.getExperiment(user, 'an_experiment');
     expect(result instanceof DynamicConfig).toBe(true);
-    expectSingleError('_store.getConfig');
+    expectSingleError('this._logger.logConfigExposure');
   });
 
   it('recovers from errors and returns default layer value', async () => {
     const result = client.getLayer(user, 'a_layer');
     expect(result instanceof Layer).toBe(true);
-    expectSingleError('_store.getLayer');
+    // no error because getting a layer does not trigger an exposure
+    expect(requests.length).toEqual(0);
   });
 
   it('recovers from errors with logEvent', () => {
@@ -112,10 +110,10 @@ describe('Statsig ErrorBoundary Usage', () => {
   it('captures crashes in saving', async () => {
     const localClient = new StatsigClient('client-key');
     // @ts-ignore
-    localClient._store.save = null;
+    localClient._evaluator.save = null;
     await localClient.initializeAsync();
     requests.shift(); // remove the /initialize call
-    expectSingleError('this._store.save is not a function');
+    expectSingleError('this._evaluator.save is not a function');
   });
 
   it('captures the case when a non JSON 200 is returned', async () => {
