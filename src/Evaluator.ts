@@ -192,9 +192,6 @@ export default class Evaluator {
       case 'fail_gate':
       case 'pass_gate': {
         const nestedGate = this.store.getFeatureGateSpec(target as string);
-        if (nestedGate === null) {
-          return 
-        }
         const gateResult = this.evalConfigSpec(
           user,
           nestedGate,
