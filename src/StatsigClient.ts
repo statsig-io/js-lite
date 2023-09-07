@@ -71,7 +71,7 @@ export default class StatsigClient {
       this._network,
       this._errorBoundary,
     );
-    this._store = new StatsigStore(this._identity);
+    this._store = new StatsigStore(this._options, this._identity);
 
     this._errorBoundary._setStatsigMetadata(this._identity._statsigMetadata);
 

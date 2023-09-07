@@ -2,6 +2,7 @@ import ConfigEvaluation from './ConfigEvaluation';
 import { ConfigCondition, ConfigRule, ConfigSpec } from './ConfigSpec';
 import { StatsigUnsupportedEvaluationError } from './Errors';
 import { EvaluationReason } from './EvaluationMetadata';
+import type StatsigStore from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
 import { sha256create } from './utils/js-sha256';
 
@@ -9,92 +10,21 @@ const CONDITION_SEGMENT_COUNT = 10 * 1000;
 const USER_BUCKET_COUNT = 1000;
 
 export default class Evaluator {
-  private featureGates: Record<string, ConfigSpec>;
-  private dynamicConfigs: Record<string, ConfigSpec>;
-  private layerConfigs: Record<string, ConfigSpec>;
+  private store: StatsigStore;
 
-  public constructor() {
-    this.featureGates = {};
-    this.dynamicConfigs = {};
-    this.layerConfigs = {};
-  }
-  
-  public setConfigSpecs(values: Record<string, unknown>) {
-    let updatedGates: Record<string, ConfigSpec> = {};
-    let updatedConfigs: Record<string, ConfigSpec> = {};
-    let updatedLayers: Record<string, ConfigSpec> = {};
-    const featureGates = values.feature_gates;
-    const dynamicConfigs = values.dynamic_configs;
-    const layerConfigs = values.layer_configs;
-    
-    if (
-      !Array.isArray(featureGates) ||
-      !Array.isArray(dynamicConfigs) ||
-      !Array.isArray(layerConfigs)
-    ) {
-      return false;
-    }
-
-    for (const gateJSON of featureGates) {
-      try {
-        const gate = new ConfigSpec(gateJSON);
-        updatedGates[gate.name] = gate;
-      } catch (e) {
-        return false;
-      }
-    }
-
-    for (const configJSON of dynamicConfigs) {
-      try {
-        const config = new ConfigSpec(configJSON);
-        updatedConfigs[config.name] = config;
-      } catch (e) {
-        return false;
-      }
-    }
-
-    for (const layerJSON of layerConfigs) {
-      try {
-        const config = new ConfigSpec(layerJSON);
-        updatedLayers[config.name] = config;
-      } catch (e) {
-        console.error(e);
-        return false;
-      }
-    }
-
-    this.featureGates = updatedGates;
-    this.dynamicConfigs = updatedConfigs;
-    this.layerConfigs = updatedLayers;
-    return true;
+  public constructor(store: StatsigStore) {
+    this.store = store;
   }
 
-  public checkGate(user: StatsigUser, gateName: string): ConfigEvaluation {
-    const gateDef = this.featureGates[gateName];
-    return this._evalConfigSpec(user, gateDef);
-  }
-
-  public getConfig(user: StatsigUser, configName: string): ConfigEvaluation {
-    const configDef = this.dynamicConfigs[configName];
-    return this._evalConfigSpec(user, configDef);
-  }
-
-  public getLayer(user: StatsigUser, layerName: string): ConfigEvaluation {
-    const layer = this.layerConfigs[layerName];
-    const res = this._evalConfigSpec(user, layer);
-    return res;
-  }
-
-  private _evalConfigSpec(
+  public evalConfigSpec(
     user: StatsigUser,
     config: ConfigSpec | null,
   ): ConfigEvaluation {
-    if (!config) {
+    if (config === null) {
       return new ConfigEvaluation(false, '').withEvaluationReason(
         EvaluationReason.Unrecognized,
       );
     }
-
     const evaulation = this._eval(user, config);
     return evaulation.withEvaluationReason(EvaluationReason.Network);
   }
@@ -176,7 +106,7 @@ export default class Evaluator {
     if (rule.configDelegate == null) {
       return null;
     }
-    const config = this.dynamicConfigs[rule.configDelegate];
+    const config = this.store.getDynamicConfigSpec(rule.configDelegate);
     if (!config) {
       return null;
     }
@@ -261,9 +191,13 @@ export default class Evaluator {
         return { passes: true };
       case 'fail_gate':
       case 'pass_gate': {
-        const gateResult = this._evalConfigSpec(
+        const nestedGate = this.store.getFeatureGateSpec(target as string);
+        if (nestedGate === null) {
+          return 
+        }
+        const gateResult = this.evalConfigSpec(
           user,
-          this.featureGates[target as string],
+          nestedGate,
         );
         value = gateResult?.value;
 

@@ -8,6 +8,11 @@ export type StatsigEnvironment = {
   [key: string]: string | undefined;
 };
 
+export interface UserPersistentStorageInterface {
+  load(userID: string): string
+  save(userID: string, data: string): void
+}
+
 type CommonOptions = {
   configSpecAPI?: string;
   eventLoggingAPI?: string;

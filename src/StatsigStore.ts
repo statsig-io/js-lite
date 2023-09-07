@@ -9,7 +9,8 @@ import {
   EvaluationReason,
 } from './EvaluationMetadata';
 import Identity from './StatsigIdentity';
-
+import StatsigSDKOptions from './StatsigSDKOptions';
+import { ConfigSpec } from './ConfigSpec';
 export default class StatsigStore {
 
   private loaded: boolean;
@@ -18,19 +19,29 @@ export default class StatsigStore {
   private evaluator: Evaluator;
   private identity: Identity;
 
+  private featureGates: Record<string, ConfigSpec>;
+  private dynamicConfigs: Record<string, ConfigSpec>;
+  private layerConfigs: Record<string, ConfigSpec>;
+
   public constructor(
+    options: StatsigSDKOptions,
     identity: StatsigIdentity,
   ) {
     this.identity = identity;
     this.lcut = 0;
     this.loaded = false;
     this.reason = EvaluationReason.Uninitialized;
-    this.evaluator = new Evaluator();
+    this.evaluator = new Evaluator(this);
     this.loadFromLocalStorage();
+
+    this.featureGates = {};
+    this.dynamicConfigs = {};
+    this.layerConfigs = {};
   }
 
   public setInitializeValues(initializeValues: Record<string, unknown>): void {
-    this.evaluator.setConfigSpecs(initializeValues);
+    this.setConfigSpecs(initializeValues);
+    this.reason = EvaluationReason.Bootstrap;
   }
 
   private loadFromLocalStorage(): void {
@@ -46,21 +57,6 @@ export default class StatsigStore {
     return this.lcut;
   }
 
-  private parseCachedValues(
-    allValues: string | null,
-    deviceExperiments: string | null,
-  ): void {
-    // TODO-HACK @tore
-
-  }
-
-  private setUserValueFromCache(
-    isUserPrefetched: boolean = false,
-  ): number | null {
-    // TODO-HACK @tore
-    return null;
-  }
-
   public setEvaluationReason(evalReason: EvaluationReason) {
     this.reason = evalReason;
   }
@@ -68,41 +64,115 @@ export default class StatsigStore {
   public async save(
     jsonConfigs: Record<string, any>,
   ): Promise<void> {
-    const updated = this.evaluator.setConfigSpecs(jsonConfigs);
+    const updated = this.setConfigSpecs(jsonConfigs);
     if (updated) {
       this.lcut = jsonConfigs.time ?? 0;
     }
+    this.reason = EvaluationReason.Network;
+  }
+
+  public setConfigSpecs(values: Record<string, unknown>) {
+    let updatedGates: Record<string, ConfigSpec> = {};
+    let updatedConfigs: Record<string, ConfigSpec> = {};
+    let updatedLayers: Record<string, ConfigSpec> = {};
+    const featureGates = values.feature_gates;
+    const dynamicConfigs = values.dynamic_configs;
+    const layerConfigs = values.layer_configs;
+    
+    if (
+      !Array.isArray(featureGates) ||
+      !Array.isArray(dynamicConfigs) ||
+      !Array.isArray(layerConfigs)
+    ) {
+      return false;
+    }
+
+    for (const gateJSON of featureGates) {
+      try {
+        const gate = new ConfigSpec(gateJSON);
+        updatedGates[gate.name] = gate;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    for (const configJSON of dynamicConfigs) {
+      try {
+        const config = new ConfigSpec(configJSON);
+        updatedConfigs[config.name] = config;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    for (const layerJSON of layerConfigs) {
+      try {
+        const config = new ConfigSpec(layerJSON);
+        updatedLayers[config.name] = config;
+      } catch (e) {
+        console.error(e);
+        return false;
+      }
+    }
+
+    this.featureGates = updatedGates;
+    this.dynamicConfigs = updatedConfigs;
+    this.layerConfigs = updatedLayers;
+
+    return true;
   }
 
   public checkGate(
     user: StatsigUser,
     gateName: string,
   ): ConfigEvaluation {
-    return this.evaluator.checkGate(user, gateName);
+    const gate = this.featureGates[gateName];
+    return this.evaluate(user, gate);
   }
 
   public getConfig(
     user: StatsigUser,
     configName: string,
   ): ConfigEvaluation {
-    // TODO-HACK @tore use evaluator
-    return this.evaluator.getConfig(user, configName);
+    const config = this.dynamicConfigs[configName];
+    return this.evaluate(user, config);
   }
 
   public getExperiment(
     user: StatsigUser,
     expName: string,
   ): ConfigEvaluation {
-    // TODO-HACK @tore use evaluator
-    return this.evaluator.getConfig(user, expName);
+    return this.getConfig(user, expName);
   }
 
   public getLayer(
     user: StatsigUser,
     layerName: string,
   ): ConfigEvaluation {
-    return this.evaluator.getLayer(user, layerName);
+    const layer = this.layerConfigs[layerName];
+    return this.evaluate(user, layer);
   }
+
+  public getDynamicConfigSpec(configName: string): ConfigSpec | null {
+    return this.dynamicConfigs[configName];
+  }
+
+  public getFeatureGateSpec(gateName: string): ConfigSpec | null {
+    return this.featureGates[gateName];
+  }
+
+  private evaluate(
+    user: StatsigUser,
+    spec: ConfigSpec | null,
+  ): ConfigEvaluation {
+    if (!spec) {
+      return new ConfigEvaluation(false, '').withEvaluationReason(
+        EvaluationReason.Unrecognized,
+      );
+    }
+    return this.evaluator.evalConfigSpec(user, spec);
+  }
+
 
   public getGlobalEvaluationDetails(): EvaluationDetails {
     return {
