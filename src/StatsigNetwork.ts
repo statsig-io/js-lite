@@ -104,10 +104,8 @@ export default class StatsigNetwork {
       return Promise.reject('window is not defined');
     }
 
-    const api = [StatsigEndpoint.DownloadConfigSpecs].includes(endpointName)
-      ? this._options.configSpecAPI
-      : this._options.eventLoggingAPI;
-    const url = api + endpointName;
+    const url = this.getUrl(endpointName);
+    const isDownloadConfigSpecs = endpointName === StatsigEndpoint.DownloadConfigSpecs;
     const counter = this.leakyBucket[url];
     if (counter != null && counter >= 30) {
       return Promise.reject(
@@ -126,11 +124,11 @@ export default class StatsigNetwork {
     const statsigMetadata = this._identity._statsigMetadata;
 
     const params: RequestInit = {
-      method: endpointName.includes(StatsigEndpoint.DownloadConfigSpecs)
+      method: isDownloadConfigSpecs
         ? 'GET'
         : 'POST',
       body: body === null ? undefined : JSON.stringify(body),
-      headers: {
+      headers: isDownloadConfigSpecs ? {} : {
         'Content-type': 'application/json; charset=UTF-8',
         'STATSIG-API-KEY': this._identity._sdkKey,
         'STATSIG-CLIENT-TIME': Date.now() + '',
@@ -338,6 +336,16 @@ export default class StatsigNetwork {
       return {
         statusText: 'statsig::failed to extract extra data',
       };
+    }
+  }
+
+  private getUrl(
+    endpointName: StatsigEndpoint,
+  ): string {
+    if ([StatsigEndpoint.DownloadConfigSpecs].includes(endpointName)) {
+      return `${this._options.configSpecAPI}${endpointName}/${this._identity._sdkKey}.json`;
+    } else {
+      return `${this._options.eventLoggingAPI}${endpointName}`;
     }
   }
 }
