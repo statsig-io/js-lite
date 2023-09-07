@@ -1,8 +1,10 @@
 import ConfigEvaluation from './ConfigEvaluation';
 import { ConfigCondition, ConfigRule, ConfigSpec } from './ConfigSpec';
 import { StatsigUnsupportedEvaluationError } from './Errors';
-import { EvaluationReason } from './EvaluationMetadata';
-import type StatsigStore from './StatsigStore';
+import { EvaluationDetails, EvaluationReason } from './EvaluationMetadata';
+import StatsigIdentity from './StatsigIdentity';
+import StatsigSDKOptions from './StatsigSDKOptions';
+import StatsigStore from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
 import { sha256create } from './utils/js-sha256';
 
@@ -12,8 +14,50 @@ const USER_BUCKET_COUNT = 1000;
 export default class Evaluator {
   private store: StatsigStore;
 
-  public constructor(store: StatsigStore) {
-    this.store = store;
+  public constructor(options: StatsigSDKOptions, identity: StatsigIdentity) {
+    this.store = new StatsigStore(options, identity);
+  }
+
+  public getConfig(user: StatsigUser, configName: string): ConfigEvaluation {
+    const config = this.store.getDynamicConfig(configName);
+    if (config === null) {
+      return new ConfigEvaluation(false, '').withEvaluationReason(
+        EvaluationReason.Unrecognized,
+      );
+    }
+    return this.evalConfigSpec(user, config);
+  }
+
+  public checkGate(user: StatsigUser, gateName: string): ConfigEvaluation {
+    const config = this.store.getFeatureGate(gateName);
+    if (config === null) {
+      return new ConfigEvaluation(false, '').withEvaluationReason(
+        EvaluationReason.Unrecognized,
+      );
+    }
+    return this.evalConfigSpec(user, config);
+  }
+
+  public getLayer(user: StatsigUser, layerName: string): ConfigEvaluation {
+    const layer = this.store.getLayerConfig(layerName);
+    if (layer === null) {
+      return new ConfigEvaluation(false, '').withEvaluationReason(
+        EvaluationReason.Unrecognized,
+      );
+    }
+    return this.evalConfigSpec(user, layer);
+  }
+
+  public save(values: Record<string, any>): void {
+    this.store.save(values);
+  }
+
+  public getGlobalEvaluationDetails(): EvaluationDetails {
+    return this.store.getGlobalEvaluationDetails();
+  }
+
+  public setInitializeValues(initializeValues: Record<string, unknown>): void {
+    this.store.setInitializeValues(initializeValues);
   }
 
   public evalConfigSpec(
@@ -106,7 +150,7 @@ export default class Evaluator {
     if (rule.configDelegate == null) {
       return null;
     }
-    const config = this.store.getDynamicConfigSpec(rule.configDelegate);
+    const config = this.store.getDynamicConfig(rule.configDelegate);
     if (!config) {
       return null;
     }
@@ -191,7 +235,7 @@ export default class Evaluator {
         return { passes: true };
       case 'fail_gate':
       case 'pass_gate': {
-        const nestedGate = this.store.getFeatureGateSpec(target as string);
+        const nestedGate = this.store.getFeatureGate(target as string);
         const gateResult = this.evalConfigSpec(
           user,
           nestedGate,

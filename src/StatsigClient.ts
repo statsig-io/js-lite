@@ -17,6 +17,7 @@ import StatsigLocalStorage from './utils/StatsigLocalStorage';
 import { now } from './utils/Timing';
 import makeLogEvent from './LogEvent';
 import ConfigEvaluation from './ConfigEvaluation';
+import Evaluator from './Evaluator';
 
 export type CheckGateOptions = {
   disableExposureLogging: boolean;
@@ -41,7 +42,7 @@ export default class StatsigClient {
   readonly _identity: StatsigIdentity;
   readonly _errorBoundary: ErrorBoundary;
   readonly _network: StatsigNetwork;
-  readonly _store: StatsigStore;
+  readonly _evaluator: Evaluator;
   readonly _logger: StatsigLogger;
   readonly _options: StatsigSDKOptions;
 
@@ -71,7 +72,7 @@ export default class StatsigClient {
       this._network,
       this._errorBoundary,
     );
-    this._store = new StatsigStore(this._options, this._identity);
+    this._evaluator = new Evaluator(this._options, this._identity);
 
     this._errorBoundary._setStatsigMetadata(this._identity._statsigMetadata);
 
@@ -135,7 +136,7 @@ export default class StatsigClient {
       () => {
         this._ready = true;
         this._initCalled = true;
-        return this._store.setInitializeValues(initializeValues);
+        return this._evaluator.setInitializeValues(initializeValues);
       },
       () => {
         return {
@@ -150,7 +151,7 @@ export default class StatsigClient {
     return this._errorBoundary._capture(
       'getEvaluationDetails',
       () => {
-        return this._store.getGlobalEvaluationDetails();
+        return this._evaluator.getGlobalEvaluationDetails();
       },
       () => {
         return {
@@ -231,7 +232,7 @@ export default class StatsigClient {
   ) {
     this._errorBoundary._swallow('logLayerParameterExposure', () => {
       const normalizedUser = this._normalizeUser(user);
-      const layer = this._getLayerFromStore(normalizedUser, null, layerName);
+      const layer = this._getLayerEvaluation(normalizedUser, null, layerName);
       this._logLayerParameterExposureForLayer(layer, parameterName, true);
     });
   }
@@ -320,12 +321,6 @@ export default class StatsigClient {
     return userCopy as StatsigUser;
   }
 
-  private _ensureStoreLoaded(): void {
-    if (!this._store.isLoaded()) {
-      throw new StatsigUninitializedError();
-    }
-  }
-
   private _getEvaluationDetailsForError(): EvaluationDetails {
     return {
       time: Date.now(),
@@ -337,7 +332,7 @@ export default class StatsigClient {
     timeout: number = this._options.initTimeoutMs,
   ): Promise<void> {
     const values = await this._network.fetchValues(timeout);
-    this._store.save(values);
+    this._evaluator.save(values);
   }
 
   private _checkGateImpl(
@@ -348,7 +343,7 @@ export default class StatsigClient {
     return this._errorBoundary._capture(
       'checkGate',
       () => {
-        const result = this._getGateFromStore(user, gateName);
+        const result = this._getGateEvaluation(user, gateName);
         if (!options?.disableExposureLogging) {
           this._logGateExposureImpl(user, gateName, result);
         }
@@ -358,17 +353,16 @@ export default class StatsigClient {
     );
   }
 
-  private _getGateFromStore(
+  private _getGateEvaluation(
     user: StatsigUser,
     gateName: string,
   ): ConfigEvaluation {
-    this._ensureStoreLoaded();
     if (typeof gateName !== 'string' || gateName.length === 0) {
       throw new StatsigInvalidArgumentError(
         'Must pass a valid string as the gateName.',
       );
     }
-    return this._store.checkGate(user, gateName);
+    return this._evaluator.checkGate(user, gateName);
   }
 
   private _logGateExposureImpl(
@@ -377,7 +371,7 @@ export default class StatsigClient {
     fetchResult?: ConfigEvaluation,
   ) {
     const isManualExposure = !fetchResult;
-    const result = fetchResult ?? this._getGateFromStore(user, gateName);
+    const result = fetchResult ?? this._getGateEvaluation(user, gateName);
 
     this._logger.logGateExposure(
       user,
@@ -398,7 +392,7 @@ export default class StatsigClient {
     return this._errorBoundary._capture(
       'getConfig',
       () => {
-        const result = this._getConfigFromStore(user, configName);
+        const result = this._getConfigEvaluation(user, configName);
         if (!options?.disableExposureLogging) {
           this._logConfigExposureImpl(user, configName, result);
         }
@@ -408,17 +402,16 @@ export default class StatsigClient {
     );
   }
 
-  private _getConfigFromStore(
+  private _getConfigEvaluation(
     user: StatsigUser,
     configName: string,
   ): DynamicConfig {
-    this._ensureStoreLoaded();
     if (typeof configName !== 'string' || configName.length === 0) {
       throw new StatsigInvalidArgumentError(
         'Must pass a valid string as the configName.',
       );
     }
-    const evaluation = this._store.getConfig(user, configName);
+    const evaluation = this._evaluator.getConfig(user, configName);
     return new DynamicConfig(
       configName,
       evaluation.json_value,
@@ -436,7 +429,7 @@ export default class StatsigClient {
     config?: DynamicConfig,
   ) {
     const isManualExposure = !config;
-    const localConfig = config ?? this._getConfigFromStore(user, configName);
+    const localConfig = config ?? this._getConfigEvaluation(user, configName);
 
     this._logger.logConfigExposure(
       user,
@@ -482,7 +475,7 @@ export default class StatsigClient {
         const logFunc = options?.disableExposureLogging
           ? null
           : this._logLayerParameterExposureForLayer;
-        return this._getLayerFromStore(user, logFunc, layerName);
+        return this._getLayerEvaluation(user, logFunc, layerName);
       },
       () =>
         Layer._create(
@@ -495,18 +488,17 @@ export default class StatsigClient {
     );
   }
 
-  private _getLayerFromStore(
+  private _getLayerEvaluation(
     user: StatsigUser,
     logParameterFunction: LogParameterFunction | null,
     layerName: string,
   ): Layer {
-    this._ensureStoreLoaded();
     if (typeof layerName !== 'string' || layerName.length === 0) {
       throw new StatsigInvalidArgumentError(
         'Must pass a valid string as the layerName.',
       );
     }
-    const result = this._store.getLayer(user, layerName);
+    const result = this._evaluator.getLayer(user, layerName);
     return Layer._create(
       user,
       layerName,

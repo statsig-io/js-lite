@@ -1,7 +1,5 @@
 import { StatsigUser } from './StatsigUser';
 import StatsigIdentity from './StatsigIdentity';
-import Evaluator from './Evaluator';
-import ConfigEvaluation from './ConfigEvaluation';
 import type {
   EvaluationDetails,
 } from './EvaluationMetadata';
@@ -16,22 +14,22 @@ export default class StatsigStore {
   private loaded: boolean;
   private lcut: number;
   private reason: EvaluationReason;
-  private evaluator: Evaluator;
   private identity: Identity;
 
   private featureGates: Record<string, ConfigSpec>;
   private dynamicConfigs: Record<string, ConfigSpec>;
   private layerConfigs: Record<string, ConfigSpec>;
+  private options: StatsigSDKOptions;
 
   public constructor(
     options: StatsigSDKOptions,
     identity: StatsigIdentity,
   ) {
     this.identity = identity;
+    this.options = options;
     this.lcut = 0;
     this.loaded = false;
     this.reason = EvaluationReason.Uninitialized;
-    this.evaluator = new Evaluator(this);
     this.loadFromLocalStorage();
 
     this.featureGates = {};
@@ -44,13 +42,9 @@ export default class StatsigStore {
     this.reason = EvaluationReason.Bootstrap;
   }
 
+  // TODO-HACK @tore
   private loadFromLocalStorage(): void {
     // TODO-HACK @tore
-    this.loaded = true;
-  }
-
-  public isLoaded(): boolean {
-    return this.loaded;
   }
 
   public getLastUpdateTime(user: StatsigUser): number | null {
@@ -122,57 +116,17 @@ export default class StatsigStore {
     return true;
   }
 
-  public checkGate(
-    user: StatsigUser,
-    gateName: string,
-  ): ConfigEvaluation {
-    const gate = this.featureGates[gateName];
-    return this.evaluate(user, gate);
+  public getDynamicConfig(configName: string): ConfigSpec | null {
+    return this.dynamicConfigs[configName] ?? null;
   }
 
-  public getConfig(
-    user: StatsigUser,
-    configName: string,
-  ): ConfigEvaluation {
-    const config = this.dynamicConfigs[configName];
-    return this.evaluate(user, config);
+  public getFeatureGate(gateName: string): ConfigSpec | null {
+    return this.featureGates[gateName] ?? null;
   }
 
-  public getExperiment(
-    user: StatsigUser,
-    expName: string,
-  ): ConfigEvaluation {
-    return this.getConfig(user, expName);
+  public getLayerConfig(layerName: string): ConfigSpec | null {
+    return this.layerConfigs[layerName] ?? null;
   }
-
-  public getLayer(
-    user: StatsigUser,
-    layerName: string,
-  ): ConfigEvaluation {
-    const layer = this.layerConfigs[layerName];
-    return this.evaluate(user, layer);
-  }
-
-  public getDynamicConfigSpec(configName: string): ConfigSpec | null {
-    return this.dynamicConfigs[configName];
-  }
-
-  public getFeatureGateSpec(gateName: string): ConfigSpec | null {
-    return this.featureGates[gateName];
-  }
-
-  private evaluate(
-    user: StatsigUser,
-    spec: ConfigSpec | null,
-  ): ConfigEvaluation {
-    if (!spec) {
-      return new ConfigEvaluation(false, '').withEvaluationReason(
-        EvaluationReason.Unrecognized,
-      );
-    }
-    return this.evaluator.evalConfigSpec(user, spec);
-  }
-
 
   public getGlobalEvaluationDetails(): EvaluationDetails {
     return {
