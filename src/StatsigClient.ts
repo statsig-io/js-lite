@@ -33,10 +33,15 @@ export type GetLayerOptions = {
   disableExposureLogging: boolean;
 };
 
+export type InitializeMetadata = {
+  success: boolean,
+  message?: string,
+}
+
 export default class StatsigClient {
   private _ready: boolean;
   private _initCalled: boolean = false;
-  private _pendingInitPromise: Promise<void> | null = null;
+  private _pendingInitPromise: Promise<InitializeMetadata> | null = null;
   private _startTime;
 
   readonly _identity: StatsigIdentity;
@@ -48,8 +53,8 @@ export default class StatsigClient {
 
   public constructor(sdkKey: string, options?: StatsigOptions | null) {
     if (options?.localMode !== true && typeof sdkKey !== 'string') {
-      throw new StatsigInvalidArgumentError(
-        'Invalid key provided.  You must use a Client SDK Key from the Statsig console to initialize the sdk',
+      console.error(
+        'Invalid key provided. You must use a Client SDK Key from the Statsig console to initialize the sdk',
       );
     }
     this._startTime = now();
@@ -81,67 +86,60 @@ export default class StatsigClient {
     }
   }
 
-  public async initializeAsync(): Promise<void> {
-    return this._errorBoundary._capture(
+  public async initializeAsync(): Promise<InitializeMetadata> {
+    return this._errorBoundary._capture<Promise<InitializeMetadata>>(
       'initializeAsync',
       async () => {
         if (this._pendingInitPromise != null) {
           return this._pendingInitPromise;
         }
         if (this._ready) {
-          return Promise.resolve();
+          return Promise.resolve({success: true, message: "Client is already initialized."});
         }
 
         this._initCalled = true;
 
         if (this._options.localMode) {
-          return Promise.resolve();
+          return Promise.resolve({success: true, message: "Client is in local mode."});
         }
 
         this._pendingInitPromise = this._fetchAndSaveValues(
           this._options.initTimeoutMs,
-        )
-          .then(() => {
-            return;
-          })
-          .catch((e) => {
-            this._errorBoundary._logError(
-              'initializeAsync:fetchAndSaveValues',
-              e,
-            );
-            return { success: false, message: e.message };
-          })
-          .then(() => {
-            return;
-          })
-          .finally(async () => {
-            this._pendingInitPromise = null;
-            this._ready = true;
-            this._delayedSetup();
-          });
-
-        return this._pendingInitPromise;
+        );
+        try {
+          await this._pendingInitPromise;
+          return { success: true };
+        } catch (e) {
+          this._errorBoundary._logError(
+            'initializeAsync:fetchAndSaveValues',
+            e,
+          );
+          return { success: false, message: String((e as Error).message) };
+        }
       },
       () => {
         this._ready = true;
         this._initCalled = true;
-        return Promise.resolve();
+        return Promise.resolve({ success: false, message: "An error occured while initializing" });
       },
     );
   }
 
-  public initialize(initializeValues: Record<string, unknown>): void {
-    this._errorBoundary._capture(
+  public initialize(initializeValues: Record<string, unknown>): InitializeMetadata {
+    return this._errorBoundary._capture<InitializeMetadata>(
       'initialize',
       () => {
         this._ready = true;
         this._initCalled = true;
-        return this._evaluator.setInitializeValues(initializeValues);
+        this._evaluator.setInitializeValues(initializeValues);
+        return {
+          success: false,
+        };
       },
       () => {
         return {
-          time: Date.now(),
-          reason: EvaluationReason.Error,
+          success: false,
+          message: "An error occured while parsing initialize values",
         };
       },
     );
@@ -166,7 +164,6 @@ export default class StatsigClient {
    * Checks the value of a gate for the current user
    * @param {string} gateName - the name of the gate to check
    * @returns {boolean} - value of a gate for the user. Gates are "off" (return false) by default
-   * @throws Error if initialize() is not called first, or gateName is not a string
    */
   public checkGate(
     user: StatsigUser,
@@ -188,7 +185,6 @@ export default class StatsigClient {
    * Checks the value of a config for the current user
    * @param {string} configName - the name of the config to get
    * @returns {DynamicConfig} - value of a config for the user
-   * @throws Error if initialize() is not called first, or configName is not a string
    */
   public getConfig(user: StatsigUser, configName: string): DynamicConfig {
     const normalizedUser = this._normalizeUser(user);
@@ -245,11 +241,6 @@ export default class StatsigClient {
   ): void {
     this._errorBoundary._swallow('logEvent', () => {
       const normalizedUser = this._normalizeUser(user);
-      if (!this._logger || !this._identity._sdkKey) {
-        throw new StatsigUninitializedError(
-          StatsigErrorMessage.REQUIRE_INITIALIZE_FOR_LOG_EVENT,
-        );
-      }
       if (typeof eventName !== 'string' || eventName.length === 0) {
         return;
       }
@@ -304,11 +295,7 @@ export default class StatsigClient {
     let userCopy: StatsigUser = {};
     try {
       userCopy = JSON.parse(JSON.stringify(user)) as StatsigUser;
-    } catch (error) {
-      throw new StatsigInvalidArgumentError(
-        'User object must be convertable to JSON string.',
-      );
-    }
+    } catch (error) {}
     if (this._options.environment != null) {
       userCopy = { ...userCopy, statsigEnvironment: this._options.environment };
     }
@@ -330,9 +317,10 @@ export default class StatsigClient {
 
   private async _fetchAndSaveValues(
     timeout: number = this._options.initTimeoutMs,
-  ): Promise<void> {
+  ): Promise<InitializeMetadata> {
     const values = await this._network.fetchValues(timeout);
     this._evaluator.save(values);
+    return { success: true };
   }
 
   private _checkGateImpl(
@@ -357,11 +345,6 @@ export default class StatsigClient {
     user: StatsigUser,
     gateName: string,
   ): ConfigEvaluation {
-    if (typeof gateName !== 'string' || gateName.length === 0) {
-      throw new StatsigInvalidArgumentError(
-        'Must pass a valid string as the gateName.',
-      );
-    }
     return this._evaluator.checkGate(user, gateName);
   }
 
@@ -406,11 +389,6 @@ export default class StatsigClient {
     user: StatsigUser,
     configName: string,
   ): DynamicConfig {
-    if (typeof configName !== 'string' || configName.length === 0) {
-      throw new StatsigInvalidArgumentError(
-        'Must pass a valid string as the configName.',
-      );
-    }
     const evaluation = this._evaluator.getConfig(user, configName);
     return new DynamicConfig(
       configName,
@@ -493,11 +471,6 @@ export default class StatsigClient {
     logParameterFunction: LogParameterFunction | null,
     layerName: string,
   ): Layer {
-    if (typeof layerName !== 'string' || layerName.length === 0) {
-      throw new StatsigInvalidArgumentError(
-        'Must pass a valid string as the layerName.',
-      );
-    }
     const result = this._evaluator.getLayer(user, layerName);
     return Layer._create(
       user,

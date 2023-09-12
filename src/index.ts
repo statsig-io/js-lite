@@ -1,7 +1,7 @@
 import DynamicConfig from './DynamicConfig';
 import { StatsigUninitializedError } from './Errors';
 import Layer from './Layer';
-import StatsigClient, { CheckGateOptions, GetExperimentOptions, GetLayerOptions } from './StatsigClient';
+import StatsigClient, { CheckGateOptions, GetExperimentOptions, GetLayerOptions, InitializeMetadata } from './StatsigClient';
 import { SynchronousStatsigOptions, StatsigOptions } from './StatsigSDKOptions';
 import { EvaluationDetails, EvaluationReason } from './EvaluationMetadata';
 import { StatsigUser } from './StatsigUser';
@@ -11,6 +11,7 @@ export { StatsigEnvironment, StatsigOptions } from './StatsigSDKOptions';
 export { EvaluationReason } from './EvaluationMetadata';
 export type { EvaluationDetails } from './EvaluationMetadata';
 export { StatsigUser } from './StatsigUser';
+export type { CheckGateOptions, GetExperimentOptions, GetLayerOptions, InitializeMetadata };
 
 export default class Statsig {
   private static instance: StatsigClient | null = null;
@@ -18,7 +19,7 @@ export default class Statsig {
   public static async initializeAsync(
     sdkKey: string,
     options?: StatsigOptions | null,
-  ): Promise<void> {
+  ): Promise<InitializeMetadata> {
     const inst = Statsig.instance ?? new StatsigClient(sdkKey, options);
 
     if (!Statsig.instance) {
@@ -31,13 +32,13 @@ export default class Statsig {
   public static initialize(
     sdkKey: string,
     options: SynchronousStatsigOptions,
-  ): void {
+  ): InitializeMetadata {
     const inst = Statsig.instance ?? new StatsigClient(sdkKey, options);
 
     if (!Statsig.instance) {
       Statsig.instance = inst;
     }
-    inst.initialize(options.initializeValues);
+    return inst.initialize(options.initializeValues);
   }
 
   // Gate
@@ -47,11 +48,11 @@ export default class Statsig {
     gateName: string,
     options?: CheckGateOptions,
   ): boolean {
-    return Statsig._getClientX().checkGate(user, gateName, options);
+    return Statsig.instance?.checkGate(user, gateName, options) ?? false;
   }
 
   public static manuallyLogGateExposure(user: StatsigUser, gateName: string) {
-    Statsig._getClientX().logGateExposure(user, gateName);
+    Statsig.instance?.logGateExposure(user, gateName);
   }
 
   // Config
@@ -59,11 +60,11 @@ export default class Statsig {
     user: StatsigUser,
     configName: string,
   ): DynamicConfig {
-    return Statsig._getClientX().getConfig(user, configName);
+    return Statsig.instance?.getConfig(user, configName) ?? new DynamicConfig(configName, {}, '', this.getEvaluationDetails());
   }
 
   public static manuallyLogConfigExposure(user: StatsigUser, configName: string) {
-    Statsig._getClientX().logConfigExposure(user, configName);
+    Statsig.instance?.logConfigExposure(user, configName);
   }
 
   // Experiment
@@ -72,11 +73,11 @@ export default class Statsig {
     experimentName: string,
     options?: GetExperimentOptions,
   ): DynamicConfig {
-    return Statsig._getClientX().getExperiment(user, experimentName, options);
+    return Statsig.instance?.getExperiment(user, experimentName, options) ?? new DynamicConfig(experimentName, {}, '', this.getEvaluationDetails());
   }
 
   public static manuallyLogExperimentExposure(user: StatsigUser,configName: string) {
-    Statsig._getClientX().logExperimentExposure(user, configName);
+    Statsig.instance?.logExperimentExposure(user, configName);
   }
 
   // Layer
@@ -85,7 +86,7 @@ export default class Statsig {
     layerName: string,
     options?: GetLayerOptions,
   ): Layer {
-    return Statsig._getClientX().getLayer(user, layerName, options);
+    return Statsig.instance?.getLayer(user, layerName, options) ?? Layer._create(user, layerName, {}, '', this.getEvaluationDetails());
   }
 
   public static manuallyLogLayerParameterExposure(
@@ -93,7 +94,7 @@ export default class Statsig {
     layerName: string,
     parameterName: string,
   ) {
-    Statsig._getClientX().logLayerParameterExposure(user, layerName, parameterName);
+    Statsig.instance?.logLayerParameterExposure(user, layerName, parameterName);
   }
 
   public static logEvent(
@@ -102,11 +103,11 @@ export default class Statsig {
     value: string | number | null = null,
     metadata: Record<string, string> | null = null,
   ): void {
-    return Statsig._getClientX().logEvent(user, eventName, value, metadata);
+    return Statsig.instance?.logEvent(user, eventName, value, metadata);
   }
 
   public static shutdown() {
-    Statsig._getClientX().shutdown();
+    Statsig.instance?.shutdown();
     Statsig.instance = null;
   }
 
@@ -114,7 +115,7 @@ export default class Statsig {
    * @returns The Statsig stable ID used for device level experiments
    */
   public static getStableID(): string {
-    return Statsig._getClientX().getStableID();
+    return Statsig.instance?.getStableID() ?? '';
   }
 
   /**
@@ -137,12 +138,5 @@ export default class Statsig {
    */
   public static initializeCalled(): boolean {
     return Statsig.instance != null && Statsig.instance.initializeCalled();
-  }
-
-  private static _getClientX(): StatsigClient {
-    if (!Statsig.instance) {
-      throw new StatsigUninitializedError();
-    }
-    return Statsig.instance;
   }
 }
