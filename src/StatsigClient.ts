@@ -106,20 +106,15 @@ export default class StatsigClient {
         this._pendingInitPromise = this._fetchAndSaveValues(
           this._options.initTimeoutMs,
         );
-        try {
-          await this._pendingInitPromise;
-          return { success: true };
-        } catch (e) {
-          this._errorBoundary._logError(
-            'initializeAsync:fetchAndSaveValues',
-            e,
-          );
-          return { success: false, message: String((e as Error).message) };
-        }
+        await this._pendingInitPromise;
+        this._ready = true;
+        this._delayedSetup();
+        return { success: true };
       },
       () => {
         this._ready = true;
         this._initCalled = true;
+        this._delayedSetup();
         return Promise.resolve({ success: false, message: "An error occured while initializing" });
       },
     );

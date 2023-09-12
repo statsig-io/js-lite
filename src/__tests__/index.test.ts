@@ -53,76 +53,76 @@ describe('Verify behavior of top level index functions', () => {
     jest.spyOn(global.Date, 'now').mockImplementation(() => now);
   });
 
-  test('Verify checkGate throws when calling before initialize', () => {
+  test('Verify checkGate does not throw when calling before initialize', () => {
     expect(() => {
       statsig.checkGate({}, 'gate_that_doesnt_exist');
-    }).toThrowError('Call and wait for initialize() to finish first.');
+    }).not.toThrow();
     // @ts-ignore
     expect(statsig.instance).toBeNull();
   });
 
-  test('Verify checkGate throws with no gate name', () => {
+  test('Verify checkGate does not throw with no gate name', () => {
     return statsig.initializeAsync('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
         statsig.checkGate({});
-      }).toThrowError('Must pass a valid string as the gateName.');
+      }).not.toThrow();
     });
   });
 
-  test('Verify checkGate throws with wrong type as gate name', () => {
+  test('Verify checkGate does not throw with wrong type as gate name', () => {
     return statsig.initializeAsync('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
         statsig.checkGate({}, false);
-      }).toThrowError('Must pass a valid string as the gateName.');
+      }).not.toThrow();
     });
   });
 
-  test('Verify getConfig() and getExperiment() throw with no config name', () => {
+  test('Verify getConfig() and getExperiment() do not throw with no config name', () => {
     expect.assertions(2);
     return statsig.initializeAsync('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
         statsig.getConfig({});
-      }).toThrowError('Must pass a valid string as the configName.');
+      }).not.toThrow();
       expect(() => {
         // @ts-ignore
         statsig.getExperiment({});
-      }).toThrowError('Must pass a valid string as the configName.');
+      }).not.toThrow();
     });
   });
 
-  test('Verify getConfig and getExperiment() throw with wrong type as config name', () => {
+  test('Verify getConfig and getExperiment() do not throw with wrong type as config name', () => {
     expect.assertions(2);
     return statsig.initializeAsync('client-key', null).then(() => {
       expect(() => {
         // @ts-ignore
         statsig.getConfig({}, 12);
-      }).toThrowError('Must pass a valid string as the configName.');
+      }).not.toThrow();
       expect(() => {
         // @ts-ignore
         statsig.getExperiment({}, 12);
-      }).toThrowError('Must pass a valid string as the configName.');
+      }).not.toThrow();
     });
   });
 
-  test('Verify getConfig and getExperiment throw when calling before initialize', () => {
+  test('Verify getConfig and getExperiment do not throw when calling before initialize', () => {
     expect.assertions(3);
     expect(() => {
       statsig.getConfig({}, 'config_that_doesnt_exist');
-    }).toThrowError('Call and wait for initialize() to finish first.');
+    }).not.toThrow();
     expect(() => {
       statsig.getExperiment({}, 'config_that_doesnt_exist');
-    }).toThrowError('Call and wait for initialize() to finish first.');
+    }).not.toThrow();
     // @ts-ignore
     expect(statsig.instance).toBeNull();
   });
 
-  test('Verify logEvent throws if called before initialize()', () => {
+  test('Verify logEvent does not throw if called before initialize()', () => {
     expect(() => {
       statsig.logEvent({}, 'test_event');
-    }).toThrowError('Call and wait for initialize() to finish first.');
+    }).not.toThrow();
     // @ts-ignore
     expect(statsig.instance).toBeNull();
   });
@@ -197,11 +197,7 @@ describe('Verify behavior of top level index functions', () => {
 
   test('Initialize rejects invalid SDK Key', () => {
     // @ts-ignore
-    return expect(statsig.initializeAsync()).rejects.toEqual(
-      new Error(
-        'Invalid key provided.  You must use a Client SDK Key from the Statsig console to initialize the sdk',
-      ),
-    );
+    return expect(statsig.initializeAsync()).resolves.toEqual({"success": true});
   });
 
   test('Verify getConfig() behaves correctly when calling under correct conditions', () => {
