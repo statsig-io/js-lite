@@ -19,6 +19,7 @@ import { StatsigUser } from './StatsigUser';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 import { now } from './utils/Timing';
 import makeLogEvent from './LogEvent';
+import { LocalOverrides } from './LocalOverrides';
 
 export default class StatsigClient {
   private _ready: boolean;
@@ -398,6 +399,19 @@ export default class StatsigClient {
     return this._initCalled;
   }
 
+  private overrides: LocalOverrides = {
+    gates: {},
+    configs: {},
+  };
+
+  public setOverrides(overrides: LocalOverrides) {
+    this.overrides = overrides;
+  }
+
+  public getOverrides(): LocalOverrides {
+    return this.overrides;
+  }
+
   // Private
 
   private _delayedSetup(): void {
@@ -472,6 +486,10 @@ export default class StatsigClient {
     return this._errorBoundary._capture(
       callsite,
       () => {
+        if (typeof this.overrides.gates[gateName] === 'boolean') {
+          return this.overrides.gates[gateName];
+        }
+
         const result = this._getGateFromStore(gateName);
         if (callsite === 'checkGate') {
           this._logGateExposureImpl(gateName, result);
@@ -518,6 +536,18 @@ export default class StatsigClient {
     return this._errorBoundary._capture(
       callsite,
       () => {
+        if (this.overrides.configs[configName]) {
+          return new DynamicConfig(
+            configName,
+            this.overrides.configs[configName],
+            'local_override',
+            {
+              reason: EvaluationReason.LocalOverride,
+              time: Date.now(),
+            },
+          );
+        }
+
         const result = this._getConfigFromStore(configName);
         if (callsite === 'getConfig') {
           this._logConfigExposureImpl(configName, result);
