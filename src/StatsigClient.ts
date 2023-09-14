@@ -444,9 +444,10 @@ export default class StatsigClient {
   ): Promise<void> {
     let sinceTime: number | null = null;
     sinceTime = this._store.getLastUpdateTime(user);
+    const previousDerivedFields = this._store.getPreviousDerivedFields(user);
 
     return this._network
-      .fetchValues(user, sinceTime, timeout)
+      .fetchValues(user, sinceTime, timeout, previousDerivedFields)
       .eventually((json) => {
         if (json?.has_updates) {
           this._store.save(user, json, false);

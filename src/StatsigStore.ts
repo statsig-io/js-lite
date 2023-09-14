@@ -4,7 +4,11 @@ import StatsigIdentity from './StatsigIdentity';
 import { StatsigUser } from './StatsigUser';
 import BootstrapValidator from './utils/BootstrapValidator';
 import { INTERNAL_STORE_KEY } from './utils/Constants';
-import { getHashValue, getUserCacheKey } from './utils/Hashing';
+import {
+  djb2HashForObject,
+  getHashValue,
+  getUserCacheKey,
+} from './utils/Hashing';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 
 export enum EvaluationReason {
@@ -55,6 +59,7 @@ type APIInitializeData = {
   has_updates?: boolean;
   time: number;
   user_hash?: string;
+  derived_fields?: Record<string, string>;
 };
 
 type UserCacheValues = APIInitializeData & {
@@ -134,11 +139,22 @@ export default class StatsigStore {
   }
 
   public getLastUpdateTime(user: StatsigUser | null): number | null {
-    const userHash = getHashValue(JSON.stringify(user));
+    const userHash = djb2HashForObject(user);
     if (this._userValues.user_hash == userHash) {
       return this._userValues.time;
     }
     return null;
+  }
+
+  public getPreviousDerivedFields(
+    user: StatsigUser | null,
+  ): Record<string, string> | undefined {
+    const userHash = djb2HashForObject(user);
+    console.log('HASH', userHash, this._userValues.user_hash);
+    if (this._userValues.user_hash == userHash) {
+      return this._userValues.derived_fields;
+    }
+    return undefined;
   }
 
   public setEvaluationReason(evalReason: EvaluationReason) {
@@ -290,7 +306,7 @@ export default class StatsigStore {
         requestedUserCacheKey,
       );
       if (data.has_updates && data.time) {
-        const userHash = getHashValue(JSON.stringify(user));
+        const userHash = djb2HashForObject(user);
         requestedUserValues.user_hash = userHash;
       }
 
@@ -406,6 +422,7 @@ export default class StatsigStore {
       dynamic_configs: data.dynamic_configs,
       time: data.time == null || isNaN(data.time) ? 0 : data.time,
       evaluation_time: Date.now(),
+      derived_fields: data.derived_fields,
     };
   }
 
