@@ -150,7 +150,6 @@ export default class StatsigStore {
     user: StatsigUser | null,
   ): Record<string, string> | undefined {
     const userHash = djb2HashForObject(user);
-    console.log('HASH', userHash, this._userValues.user_hash);
     if (this._userValues.user_hash == userHash) {
       return this._userValues.derived_fields;
     }
