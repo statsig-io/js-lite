@@ -19,13 +19,18 @@ import { StatsigUser } from './StatsigUser';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 import { now } from './utils/Timing';
 import makeLogEvent from './LogEvent';
-import { LocalOverrides } from './LocalOverrides';
+import {
+  LocalOverrides,
+  loadOverridesFromLocalStorage,
+  saveOverridesToLocalStorage,
+} from './LocalOverrides';
 
 export default class StatsigClient {
   private _ready: boolean;
   private _initCalled: boolean = false;
   private _pendingInitPromise: Promise<void> | null = null;
   private _startTime;
+  private _overrides: LocalOverrides;
 
   readonly _identity: StatsigIdentity;
   readonly _errorBoundary: ErrorBoundary;
@@ -52,6 +57,7 @@ export default class StatsigClient {
     this._ready = false;
     this._options = new StatsigSDKOptions(options);
     StatsigLocalStorage.disabled = this._options.disableLocalStorage;
+    this._overrides = loadOverridesFromLocalStorage();
     this._identity = new StatsigIdentity(
       sdkKey,
       this._normalizeUser(user ?? null),
@@ -399,17 +405,13 @@ export default class StatsigClient {
     return this._initCalled;
   }
 
-  private overrides: LocalOverrides = {
-    gates: {},
-    configs: {},
-  };
-
-  public setOverrides(overrides: LocalOverrides) {
-    this.overrides = overrides;
+  public setOverrides(overrides: LocalOverrides | null) {
+    this._overrides = overrides ?? { gates: {}, configs: {}, layers: {} };
+    saveOverridesToLocalStorage(this._overrides);
   }
 
   public getOverrides(): LocalOverrides {
-    return this.overrides;
+    return this._overrides;
   }
 
   // Private
@@ -486,8 +488,8 @@ export default class StatsigClient {
     return this._errorBoundary._capture(
       callsite,
       () => {
-        if (typeof this.overrides.gates[gateName] === 'boolean') {
-          return this.overrides.gates[gateName];
+        if (typeof this._overrides.gates[gateName] === 'boolean') {
+          return this._overrides.gates[gateName];
         }
 
         const result = this._getGateFromStore(gateName);
@@ -536,10 +538,10 @@ export default class StatsigClient {
     return this._errorBoundary._capture(
       callsite,
       () => {
-        if (this.overrides.configs[configName]) {
+        if (this._overrides.configs[configName]) {
           return new DynamicConfig(
             configName,
-            this.overrides.configs[configName],
+            this._overrides.configs[configName],
             'local_override',
             {
               reason: EvaluationReason.LocalOverride,
@@ -590,6 +592,18 @@ export default class StatsigClient {
     return this._errorBoundary._capture(
       callsite,
       () => {
+        if (this._overrides.layers[layerName]) {
+          return Layer._create(
+            layerName,
+            this._overrides.layers[layerName],
+            'local_override',
+            {
+              reason: EvaluationReason.LocalOverride,
+              time: Date.now(),
+            },
+          );
+        }
+
         const logFunc =
           callsite === 'getLayer'
             ? this._logLayerParameterExposureForLayer

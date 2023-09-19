@@ -129,7 +129,7 @@ export default class Statsig {
     Statsig.instance = null;
   }
 
-  public static setOverrides(overrides: LocalOverrides) {
+  public static setOverrides(overrides: LocalOverrides | null) {
     Statsig._getClientX().setOverrides(overrides);
   }
 
