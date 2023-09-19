@@ -80,7 +80,7 @@ describe('Verify behavior of StatsigClient with sinceTime', () => {
 
     const spy = jest.spyOn(statsig._network, 'fetchValues');
     await statsig.initializeAsync();
-    expect(spy).toHaveBeenCalledWith(user, null, expect.anything());
+    expect(spy).toHaveBeenCalledWith(user, null, expect.anything(), undefined);
 
     const key = getUserCacheKey(user);
     const userHash = getHashValue(JSON.stringify(user));
@@ -92,6 +92,11 @@ describe('Verify behavior of StatsigClient with sinceTime', () => {
     expect(storeObject[key].time).toEqual(1646026677490);
 
     await statsig.updateUser(user);
-    expect(spy).toHaveBeenCalledWith(user, 1646026677490, expect.anything());
+    expect(spy).toHaveBeenCalledWith(
+      user,
+      1646026677490,
+      expect.anything(),
+      undefined,
+    );
   });
 });

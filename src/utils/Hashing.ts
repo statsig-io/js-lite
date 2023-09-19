@@ -14,6 +14,31 @@ export function getHashValue(value: string): string {
   return SimpleHash(value);
 }
 
+export function djb2HashForObject(
+  object: Record<string, unknown> | null,
+): string {
+  return SimpleHash(JSON.stringify(getSortedObject(object)));
+}
+
+export function getSortedObject(
+  object: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (object == null) {
+    return null;
+  }
+  const keys = Object.keys(object).sort();
+  const sortedObject: Record<string, unknown> = {};
+  keys.forEach((key) => {
+    let value = object[key];
+    if (value instanceof Object) {
+      value = getSortedObject(value as Record<string, unknown>);
+    }
+
+    sortedObject[key] = value;
+  });
+  return sortedObject;
+}
+
 export function getUserCacheKey(user: StatsigUser | null): string {
   let key = `userID:${String(user?.userID ?? '')}`;
 

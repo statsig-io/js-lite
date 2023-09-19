@@ -62,12 +62,14 @@ export default class StatsigNetwork {
     user: StatsigUser | null,
     sinceTime: number | null,
     timeout: number,
+    previousDerivedFields?: Record<string, string>,
   ): PromiseWithTimeout<Record<string, any>> {
     const input = {
       user,
       statsigMetadata: this._identity._statsigMetadata,
       sinceTime: sinceTime ?? undefined,
       hash: 'djb2',
+      previousDerivedFields,
     };
 
     return this._postWithTimeout(
