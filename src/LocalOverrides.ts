@@ -2,6 +2,10 @@ import StatsigLocalStorage from './utils/StatsigLocalStorage';
 
 export const STORAGE_KEY = 'STATSIG_JS_LITE_LOCAL_OVERRIDES';
 
+export function makeEmptyOverrides() {
+  return { gates: {}, configs: {}, layers: {} };
+}
+
 export type LocalOverrides = {
   gates: { [gateName: string]: boolean };
   configs: { [configName: string]: Record<string, unknown> };
@@ -10,11 +14,16 @@ export type LocalOverrides = {
 
 export function loadOverridesFromLocalStorage(): LocalOverrides {
   const raw = StatsigLocalStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return { gates: {}, configs: {}, layers: {} };
+
+  if (raw) {
+    try {
+      return JSON.parse(raw) as LocalOverrides;
+    } catch (error) {
+      // noop
+    }
   }
 
-  return JSON.parse(raw) as LocalOverrides;
+  return makeEmptyOverrides();
 }
 
 export function saveOverridesToLocalStorage(overrides: LocalOverrides) {

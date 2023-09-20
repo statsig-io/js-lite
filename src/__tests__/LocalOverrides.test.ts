@@ -61,62 +61,80 @@ describe('Local Overrides', () => {
       disableErrorLogging: true,
     });
 
-    Statsig.setOverrides({
-      gates: { test_gate: false },
-      configs: { test_config: { num: 1 } },
-      layers: { test_layer: { val: 'override' } },
-    });
-
     hasLoggedEvents = false;
   });
 
-  it('gets overridden values', () => {
-    expect(Statsig.checkGate('test_gate')).toBe(false);
-    expect(Statsig.getConfig('test_config').value).toEqual({ num: 1 });
-    expect(Statsig.getExperiment('test_config').value).toEqual({ num: 1 });
-    expect(Statsig.getLayer('test_layer').getValue('val', 'err')).toBe(
-      'override',
-    );
-  });
+  describe.each([
+    [
+      'Set All Overrides',
+      () => {
+        Statsig.setOverrides({
+          gates: { test_gate: false },
+          configs: { test_config: { num: 1 } },
+          layers: { test_layer: { val: 'override' } },
+        });
+      },
+    ],
+    [
+      'Set Individual Overrides',
+      () => {
+        Statsig.overrideGate('test_gate', false);
+        Statsig.overrideConfig('test_config', { num: 1 });
+        Statsig.overrideLayer('test_layer', { val: 'override' });
+      },
+    ],
+  ])('%s', (_title, action) => {
+    beforeEach(() => action());
 
-  it('persists to localStorage', () => {
-    expect(localStorage).toMatchObject({
-      [STORAGE_KEY]:
-        '{"gates":{"test_gate":false},"configs":{"test_config":{"num":1}},"layers":{"test_layer":{"val":"override"}}}',
-    });
-  });
-
-  describe('when overrides are removed', () => {
-    beforeEach(() => {
-      Statsig.setOverrides(null);
-    });
-
-    afterEach(() => {
-      Statsig.shutdown();
-    });
-
-    it('gets the actual values', () => {
-      expect(Statsig.checkGate('test_gate')).toBe(true);
-      expect(Statsig.getConfig('test_config').value).toEqual({ num: 4 });
-      expect(Statsig.getExperiment('test_config').value).toEqual({ num: 4 });
+    it('gets overridden values', () => {
+      expect(Statsig.checkGate('test_gate')).toBe(false);
+      expect(Statsig.getConfig('test_config').value).toEqual({ num: 1 });
+      expect(Statsig.getExperiment('test_config').value).toEqual({ num: 1 });
       expect(Statsig.getLayer('test_layer').getValue('val', 'err')).toBe(
-        'layer_default',
+        'override',
       );
     });
 
     it('persists to localStorage', () => {
       expect(localStorage).toMatchObject({
-        [STORAGE_KEY]: '{"gates":{},"configs":{},"layers":{}}',
+        [STORAGE_KEY]:
+          '{"gates":{"test_gate":false},"configs":{"test_config":{"num":1}},"layers":{"test_layer":{"val":"override"}}}',
       });
     });
-  });
 
-  describe('when shutdown', () => {
-    beforeEach(() => {
-      Statsig.shutdown();
+    describe.each([
+      ['Remove All Overrides', () => Statsig.setOverrides(null)],
+      [
+        'Remove Individual Overrides',
+        () => {
+          Statsig.overrideGate('test_gate', null);
+          Statsig.overrideConfig('test_config', null);
+          Statsig.overrideLayer('test_layer', null);
+        },
+      ],
+    ])('%s', (_title, action) => {
+      beforeEach(() => action());
+
+      afterEach(() => Statsig.shutdown());
+
+      it('gets the actual values', () => {
+        expect(Statsig.checkGate('test_gate')).toBe(true);
+        expect(Statsig.getConfig('test_config').value).toEqual({ num: 4 });
+        expect(Statsig.getExperiment('test_config').value).toEqual({ num: 4 });
+        expect(Statsig.getLayer('test_layer').getValue('val', 'err')).toBe(
+          'layer_default',
+        );
+      });
+
+      it('persists to localStorage', () => {
+        expect(localStorage).toMatchObject({
+          [STORAGE_KEY]: '{"gates":{},"configs":{},"layers":{}}',
+        });
+      });
     });
 
     it('does not log any events', () => {
+      Statsig.shutdown();
       expect(hasLoggedEvents).toBe(false);
     });
   });

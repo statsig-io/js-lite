@@ -22,6 +22,7 @@ import makeLogEvent from './LogEvent';
 import {
   LocalOverrides,
   loadOverridesFromLocalStorage,
+  makeEmptyOverrides,
   saveOverridesToLocalStorage,
 } from './LocalOverrides';
 
@@ -405,13 +406,34 @@ export default class StatsigClient {
     return this._initCalled;
   }
 
-  public setOverrides(overrides: LocalOverrides | null) {
-    this._overrides = overrides ?? { gates: {}, configs: {}, layers: {} };
-    saveOverridesToLocalStorage(this._overrides);
+  public overrideGate(gate: string, result: boolean | null) {
+    this._setOverride('gates', gate, result);
   }
 
-  public getOverrides(): LocalOverrides {
-    return this._overrides;
+  public overrideConfig(
+    config: string,
+    result: Record<string, unknown> | null,
+  ) {
+    this._setOverride('configs', config, result);
+  }
+
+  public overrideLayer(layer: string, result: Record<string, unknown> | null) {
+    this._setOverride('layers', layer, result);
+  }
+
+  public setOverrides(overrides: LocalOverrides | null) {
+    this._errorBoundary._swallow('setOverrides', () => {
+      this._overrides = overrides ?? makeEmptyOverrides();
+      saveOverridesToLocalStorage(this._overrides);
+    });
+  }
+
+  public getOverrides(): LocalOverrides | null {
+    return this._errorBoundary._capture(
+      'getOverrides',
+      () => this._overrides,
+      () => makeEmptyOverrides(),
+    );
   }
 
   // Private
@@ -663,5 +685,19 @@ export default class StatsigClient {
       '',
       this._getEvaluationDetailsForError(),
     );
+  }
+
+  private _setOverride(
+    type: 'gates' | 'configs' | 'layers',
+    key: string,
+    result: unknown | null,
+  ) {
+    if (result == null) {
+      delete this._overrides[type][key];
+    } else {
+      this._overrides[type][key] = result as any;
+    }
+
+    this.setOverrides(this._overrides);
   }
 }
