@@ -1,6 +1,7 @@
 import DynamicConfig from './DynamicConfig';
 import { StatsigUninitializedError } from './Errors';
 import Layer from './Layer';
+import { LocalOverrides } from './LocalOverrides';
 import StatsigClient from './StatsigClient';
 import { StatsigOptions } from './StatsigSDKOptions';
 import { EvaluationDetails, EvaluationReason } from './StatsigStore';
@@ -126,6 +127,32 @@ export default class Statsig {
   public static shutdown() {
     Statsig._getClientX().shutdown();
     Statsig.instance = null;
+  }
+
+  public static overrideGate(gate: string, result: boolean | null) {
+    Statsig._getClientX().overrideGate(gate, result);
+  }
+
+  public static overrideConfig(
+    config: string,
+    result: Record<string, unknown> | null,
+  ) {
+    Statsig._getClientX().overrideConfig(config, result);
+  }
+
+  public static overrideLayer(
+    layer: string,
+    result: Record<string, unknown> | null,
+  ) {
+    Statsig._getClientX().overrideLayer(layer, result);
+  }
+
+  public static setOverrides(overrides: LocalOverrides | null) {
+    Statsig._getClientX().setOverrides(overrides);
+  }
+
+  public static getOverrides() {
+    Statsig._getClientX().getOverrides();
   }
 
   /**

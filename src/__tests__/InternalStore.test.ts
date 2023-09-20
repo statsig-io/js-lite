@@ -3,6 +3,7 @@
  */
 
 import DynamicConfig from '../DynamicConfig';
+import { STORAGE_KEY as LOCAL_OVERRIDE_STORAGE_KEY } from '../LocalOverrides';
 import StatsigClient from '../StatsigClient';
 import { EvaluationReason } from '../StatsigStore';
 import { INTERNAL_STORE_KEY, STATSIG_STABLE_ID_KEY } from '../utils/Constants';
@@ -147,7 +148,7 @@ describe('Verify behavior of InternalStore', () => {
   });
 
   test('Verify save correctly saves into cache.', () => {
-    expect.assertions(9);
+    expect.assertions(10);
     const spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
     const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
     const client = new StatsigClient(sdkKey);
@@ -167,8 +168,9 @@ describe('Verify behavior of InternalStore', () => {
     });
     expect(spyOnSet).toHaveBeenCalledTimes(1); // stableid not saved by default
 
-    expect(spyOnGet).toHaveBeenCalledTimes(2);
+    expect(spyOnGet).toHaveBeenCalledTimes(3);
     expect(spyOnGet).toHaveBeenCalledWith(INTERNAL_STORE_KEY);
+    expect(spyOnGet).toHaveBeenCalledWith(LOCAL_OVERRIDE_STORAGE_KEY);
     expect(spyOnGet).toHaveBeenCalledWith(STATSIG_STABLE_ID_KEY);
 
     const config = store.getConfig('test_config');
@@ -181,7 +183,7 @@ describe('Verify behavior of InternalStore', () => {
   });
 
   test('Verify cache before init and save correctly saves into cache.', () => {
-    expect.assertions(9);
+    expect.assertions(10);
     const spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
     const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
     const client = new StatsigClient(sdkKey);
@@ -197,8 +199,9 @@ describe('Verify behavior of InternalStore', () => {
     });
     expect(spyOnSet).toHaveBeenCalledTimes(1);
 
-    expect(spyOnGet).toHaveBeenCalledTimes(2);
+    expect(spyOnGet).toHaveBeenCalledTimes(3);
     expect(spyOnGet).toHaveBeenCalledWith(INTERNAL_STORE_KEY);
+    expect(spyOnGet).toHaveBeenCalledWith(LOCAL_OVERRIDE_STORAGE_KEY);
     expect(spyOnGet).toHaveBeenCalledWith(STATSIG_STABLE_ID_KEY);
 
     const config = store.getConfig('test_config');
@@ -211,7 +214,8 @@ describe('Verify behavior of InternalStore', () => {
   });
 
   test('Verify local storage usage with override id', () => {
-    expect.assertions(9);
+    expect.assertions(8);
+
     const spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
     const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
     const client = new StatsigClient(sdkKey, {}, { overrideStableID: '999' });
@@ -225,14 +229,14 @@ describe('Verify behavior of InternalStore', () => {
       feature_gates: feature_gates,
       dynamic_configs: configs,
     });
-    expect(spyOnSet).toHaveBeenCalledTimes(1);
 
-    expect(spyOnGet).toHaveBeenCalledTimes(1);
-    expect(spyOnGet).toHaveBeenCalledWith(INTERNAL_STORE_KEY);
+    expect(spyOnGet).toHaveBeenCalledTimes(2);
+    expect(spyOnSet).not.toHaveBeenCalledWith(STATSIG_STABLE_ID_KEY);
 
     // @ts-ignore
     client._delayedSetup();
-    expect(spyOnSet).toHaveBeenCalledTimes(2); // only now do we save the stableid
+
+    expect(spyOnSet).toHaveBeenCalledWith(STATSIG_STABLE_ID_KEY, '999'); // only now do we save the stableid
     const config = store.getConfig('test_config');
     expect(config).toMatchConfig(config_obj);
     expect(config._evaluationDetails).toEqual({

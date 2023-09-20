@@ -20,6 +20,7 @@ export enum EvaluationReason {
   Uninitialized = 'Uninitialized',
   Error = 'Error',
   NetworkNotModified = 'NetworkNotModified',
+  LocalOverride = 'LocalOverride',
 }
 
 export type EvaluationDetails = {

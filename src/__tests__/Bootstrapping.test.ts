@@ -9,7 +9,9 @@ import * as TestData from './initialize_response.json';
 import LocalStorageMock from './LocalStorageMock';
 
 describe('Statsig Client Bootstrapping', () => {
-  const sdkKey = 'client-clienttestkey';
+  let spyOnSet: jest.SpyInstance<any, unknown[]>;
+  let spyOnGet: jest.SpyInstance<any, unknown[]>;
+
   var parsedRequestBody: Record<string, any> | null;
   // @ts-ignore
   global.fetch = jest.fn((url, params) => {
@@ -52,9 +54,14 @@ describe('Statsig Client Bootstrapping', () => {
   });
 
   beforeEach(() => {
+    jest.resetAllMocks();
     jest.resetModules();
+
     parsedRequestBody = null;
     window.localStorage.clear();
+
+    spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
+    spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
   });
 
   it('bootstraps with valid values', async () => {
@@ -95,9 +102,7 @@ describe('Statsig Client Bootstrapping', () => {
   });
 
   it('uses defaults with bootstrap values is empty', async () => {
-    expect.assertions(14);
-    const spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
-    const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
+    expect.assertions(15);
 
     const client = new StatsigClient(
       'client-xyz',
@@ -108,8 +113,9 @@ describe('Statsig Client Bootstrapping', () => {
         overrideStableID: '999',
       },
     );
-    expect(spyOnSet).not.toHaveBeenCalled();
-    expect(spyOnGet).not.toBeCalled();
+    expect(spyOnSet).not.toBeCalled();
+    expect(spyOnGet).toHaveBeenCalledTimes(1);
+    expect(spyOnGet).toHaveBeenCalledWith('STATSIG_JS_LITE_LOCAL_OVERRIDES');
 
     // we get defaults everywhere else
     expect(client._identity._user).toEqual({ email: 'tore@statsig.com' });
@@ -140,12 +146,9 @@ describe('Statsig Client Bootstrapping', () => {
   });
 
   it('bootstrapping calls local storage for overrides and stableID', async () => {
-    expect.assertions(3);
+    expect.assertions(4);
 
-    const spyOnSet = jest.spyOn(window.localStorage.__proto__, 'setItem');
-    const spyOnGet = jest.spyOn(window.localStorage.__proto__, 'getItem');
-
-    const client = new StatsigClient(
+    new StatsigClient(
       'client-xyz',
       { email: 'tore@statsig.com' },
       // default parameters dont skip local storage get calls
@@ -154,7 +157,8 @@ describe('Statsig Client Bootstrapping', () => {
 
     expect(spyOnSet).not.toHaveBeenCalled();
 
-    expect(spyOnGet).toHaveBeenCalledTimes(1);
+    expect(spyOnGet).toHaveBeenCalledTimes(2);
+    expect(spyOnGet).toHaveBeenCalledWith('STATSIG_JS_LITE_LOCAL_OVERRIDES');
     expect(spyOnGet).toHaveBeenCalledWith('STATSIG_STABLE_ID');
   });
 

@@ -19,12 +19,19 @@ import { StatsigUser } from './StatsigUser';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 import { now } from './utils/Timing';
 import makeLogEvent from './LogEvent';
+import {
+  LocalOverrides,
+  loadOverridesFromLocalStorage,
+  makeEmptyOverrides,
+  saveOverridesToLocalStorage,
+} from './LocalOverrides';
 
 export default class StatsigClient {
   private _ready: boolean;
   private _initCalled: boolean = false;
   private _pendingInitPromise: Promise<void> | null = null;
   private _startTime;
+  private _overrides: LocalOverrides;
 
   readonly _identity: StatsigIdentity;
   readonly _errorBoundary: ErrorBoundary;
@@ -51,6 +58,7 @@ export default class StatsigClient {
     this._ready = false;
     this._options = new StatsigSDKOptions(options);
     StatsigLocalStorage.disabled = this._options.disableLocalStorage;
+    this._overrides = loadOverridesFromLocalStorage();
     this._identity = new StatsigIdentity(
       sdkKey,
       this._normalizeUser(user ?? null),
@@ -398,6 +406,36 @@ export default class StatsigClient {
     return this._initCalled;
   }
 
+  public overrideGate(gate: string, result: boolean | null) {
+    this._setOverride('gates', gate, result);
+  }
+
+  public overrideConfig(
+    config: string,
+    result: Record<string, unknown> | null,
+  ) {
+    this._setOverride('configs', config, result);
+  }
+
+  public overrideLayer(layer: string, result: Record<string, unknown> | null) {
+    this._setOverride('layers', layer, result);
+  }
+
+  public setOverrides(overrides: LocalOverrides | null) {
+    this._errorBoundary._swallow('setOverrides', () => {
+      this._overrides = overrides ?? makeEmptyOverrides();
+      saveOverridesToLocalStorage(this._overrides);
+    });
+  }
+
+  public getOverrides(): LocalOverrides | null {
+    return this._errorBoundary._capture(
+      'getOverrides',
+      () => this._overrides,
+      () => makeEmptyOverrides(),
+    );
+  }
+
   // Private
 
   private _delayedSetup(): void {
@@ -473,6 +511,10 @@ export default class StatsigClient {
     return this._errorBoundary._capture(
       callsite,
       () => {
+        if (typeof this._overrides.gates[gateName] === 'boolean') {
+          return this._overrides.gates[gateName];
+        }
+
         const result = this._getGateFromStore(gateName);
         if (callsite === 'checkGate') {
           this._logGateExposureImpl(gateName, result);
@@ -519,6 +561,18 @@ export default class StatsigClient {
     return this._errorBoundary._capture(
       callsite,
       () => {
+        if (this._overrides.configs[configName]) {
+          return new DynamicConfig(
+            configName,
+            this._overrides.configs[configName],
+            'local_override',
+            {
+              reason: EvaluationReason.LocalOverride,
+              time: Date.now(),
+            },
+          );
+        }
+
         const result = this._getConfigFromStore(configName);
         if (callsite === 'getConfig') {
           this._logConfigExposureImpl(configName, result);
@@ -561,6 +615,18 @@ export default class StatsigClient {
     return this._errorBoundary._capture(
       callsite,
       () => {
+        if (this._overrides.layers[layerName]) {
+          return Layer._create(
+            layerName,
+            this._overrides.layers[layerName],
+            'local_override',
+            {
+              reason: EvaluationReason.LocalOverride,
+              time: Date.now(),
+            },
+          );
+        }
+
         const logFunc =
           callsite === 'getLayer'
             ? this._logLayerParameterExposureForLayer
@@ -619,5 +685,19 @@ export default class StatsigClient {
       '',
       this._getEvaluationDetailsForError(),
     );
+  }
+
+  private _setOverride(
+    type: 'gates' | 'configs' | 'layers',
+    key: string,
+    result: unknown | null,
+  ) {
+    if (result == null) {
+      delete this._overrides[type][key];
+    } else {
+      this._overrides[type][key] = result as any;
+    }
+
+    this.setOverrides(this._overrides);
   }
 }
