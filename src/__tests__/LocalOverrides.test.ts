@@ -102,6 +102,14 @@ describe('Local Overrides', () => {
       });
     });
 
+    it('gets all the overrides', () => {
+      expect(Statsig.getOverrides()).toEqual({
+        gates: { test_gate: false },
+        configs: { test_config: { num: 1 } },
+        layers: { test_layer: { val: 'override' } },
+      });
+    });
+
     describe.each([
       ['Remove All Overrides', () => Statsig.setOverrides(null)],
       [
@@ -129,6 +137,14 @@ describe('Local Overrides', () => {
       it('persists to localStorage', () => {
         expect(localStorage).toMatchObject({
           [STORAGE_KEY]: '{"gates":{},"configs":{},"layers":{}}',
+        });
+      });
+
+      it('gets the empty overrides object', () => {
+        expect(Statsig.getOverrides()).toEqual({
+          gates: {},
+          configs: {},
+          layers: {},
         });
       });
     });
