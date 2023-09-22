@@ -428,7 +428,7 @@ export default class StatsigClient {
     });
   }
 
-  public getOverrides(): LocalOverrides | null {
+  public getOverrides(): LocalOverrides {
     return this._errorBoundary._capture(
       'getOverrides',
       () => this._overrides,

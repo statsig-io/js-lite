@@ -12,6 +12,7 @@ export { StatsigEnvironment, StatsigOptions } from './StatsigSDKOptions';
 export { EvaluationReason } from './StatsigStore';
 export type { EvaluationDetails } from './StatsigStore';
 export { StatsigUser } from './StatsigUser';
+export type { LocalOverrides };
 
 export default class Statsig {
   private static instance: StatsigClient | null = null;
@@ -151,8 +152,8 @@ export default class Statsig {
     Statsig._getClientX().setOverrides(overrides);
   }
 
-  public static getOverrides() {
-    Statsig._getClientX().getOverrides();
+  public static getOverrides(): LocalOverrides {
+    return Statsig._getClientX().getOverrides();
   }
 
   /**
