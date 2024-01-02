@@ -61,6 +61,7 @@ type APIInitializeData = {
   time: number;
   user_hash?: string;
   derived_fields?: Record<string, string>;
+  hash_used?: string;
 };
 
 type UserCacheValues = APIInitializeData & {
@@ -193,7 +194,7 @@ export default class StatsigStore {
   }
 
   public checkGate(gateName: string): StoreGateFetchResult {
-    const gateNameHash = getHashValue(gateName);
+    const gateNameHash = getHashValue(gateName, this._userValues.hash_used);
     let gateValue: APIFeatureGate = {
       name: gateName,
       value: false,
@@ -211,7 +212,7 @@ export default class StatsigStore {
   }
 
   public getConfig(configName: string): DynamicConfig {
-    const configNameHash = getHashValue(configName);
+    const configNameHash = getHashValue(configName, this._userValues.hash_used);
     let configValue: DynamicConfig;
     let details: EvaluationDetails;
     if (this._userValues?.dynamic_configs[configNameHash] != null) {
@@ -363,7 +364,7 @@ export default class StatsigStore {
     name: string,
     topLevelKey: 'layer_configs' | 'dynamic_configs',
   ): APIDynamicConfig | undefined {
-    const hash = getHashValue(name);
+    const hash = getHashValue(name, this._userValues.hash_used);
     return (
       this._userValues?.[topLevelKey]?.[hash] ??
       this._userValues?.[topLevelKey]?.[name]
@@ -423,6 +424,7 @@ export default class StatsigStore {
       time: data.time == null || isNaN(data.time) ? 0 : data.time,
       evaluation_time: Date.now(),
       derived_fields: data.derived_fields,
+      hash_used: data.hash_used,
     };
   }
 
