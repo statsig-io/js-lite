@@ -12,7 +12,7 @@ export function SimpleHash(value: string): string {
 
 export function getHashValue(
   value: string,
-  hash_used: string | undefined,
+  hash_used?: string | undefined,
 ): string {
   if (hash_used === 'none') {
     return value;
