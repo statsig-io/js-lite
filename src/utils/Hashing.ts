@@ -10,7 +10,13 @@ export function SimpleHash(value: string): string {
   return String(hash >>> 0);
 }
 
-export function getHashValue(value: string): string {
+export function getHashValue(
+  value: string,
+  hash_used?: string | undefined,
+): string {
+  if (hash_used === 'none') {
+    return value;
+  }
   return SimpleHash(value);
 }
 

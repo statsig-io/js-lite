@@ -16,6 +16,7 @@ import StatsigStore, {
   StoreGateFetchResult,
 } from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
+import { verifySDKKeyUsed } from './utils/ResponseVerification';
 import StatsigLocalStorage from './utils/StatsigLocalStorage';
 import { now } from './utils/Timing';
 import makeLogEvent from './LogEvent';
@@ -39,6 +40,7 @@ export default class StatsigClient {
   readonly _store: StatsigStore;
   readonly _logger: StatsigLogger;
   readonly _options: StatsigSDKOptions;
+  readonly _sdkKey: string | null = null;
 
   public constructor(
     sdkKey: string,
@@ -53,6 +55,7 @@ export default class StatsigClient {
         'Invalid key provided.  You must use a Client SDK Key from the Statsig console to initialize the sdk',
       );
     }
+    this._sdkKey = sdkKey;
     this._startTime = now();
     this._errorBoundary = new ErrorBoundary(sdkKey);
     this._ready = false;
@@ -487,12 +490,20 @@ export default class StatsigClient {
     return this._network
       .fetchValues(user, sinceTime, timeout, previousDerivedFields)
       .eventually((json) => {
+        if (!verifySDKKeyUsed(json, this._sdkKey ?? '', this._errorBoundary)) {
+          return;
+        }
         if (json?.has_updates) {
           this._store.save(user, json, false);
         }
       })
       .then(async (json: Record<string, any>) => {
         return this._errorBoundary._swallow('fetchAndSaveValues', async () => {
+          if (
+            !verifySDKKeyUsed(json, this._sdkKey ?? '', this._errorBoundary)
+          ) {
+            return;
+          }
           if (json?.has_updates) {
             await this._store.save(user, json);
           } else if (json?.is_no_content) {
