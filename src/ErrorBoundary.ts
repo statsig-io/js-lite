@@ -2,6 +2,7 @@ import {
   StatsigUninitializedError,
   StatsigInvalidArgumentError,
 } from './Errors';
+import StatsigSDKOptions from './StatsigSDKOptions';
 export const ExceptionEndpoint = 'https://statsigapi.net/v1/sdk_exception';
 
 type ExtraDataExtractor = () => Promise<Record<string, unknown>>;
@@ -10,9 +11,11 @@ export default class ErrorBoundary {
   private readonly _sdkKey: string;
   private _statsigMetadata?: Record<string, string | number>;
   private _seen = new Set<string>();
+  private _options: StatsigSDKOptions;
 
-  constructor(sdkKey: string) {
+  constructor(sdkKey: string, options: StatsigSDKOptions) {
     this._sdkKey = sdkKey;
+    this._options = options;
   }
 
   _setStatsigMetadata(statsigMetadata: Record<string, string | number>) {
