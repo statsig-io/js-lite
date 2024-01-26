@@ -64,6 +64,9 @@ export default class StatsigLogger {
   }
 
   public log(event: LogEvent): void {
+    if (this._options.disableEventLogging) {
+      return;
+    }
     try {
       if (
         !this._options.disableCurrentPageLogging &&
