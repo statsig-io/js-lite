@@ -64,7 +64,7 @@ export default class StatsigLogger {
   }
 
   public log(event: LogEvent): void {
-    if (this._options.disableEventLogging) {
+    if (this._options.disableAllLogging) {
       return;
     }
     try {

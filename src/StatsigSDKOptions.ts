@@ -31,7 +31,7 @@ export type StatsigOptions = {
   disableLocalStorage?: boolean;
   ignoreWindowUndefined?: boolean;
   updateUserCompletionCallback?: UpdateUserCompletionCallback;
-  disableEventLogging?: boolean;
+  disableAllLogging?: boolean;
 };
 
 type BoundedNumberInput = {
@@ -57,7 +57,7 @@ export default class StatsigSDKOptions {
   readonly disableLocalStorage: boolean;
   readonly ignoreWindowUndefined: boolean;
   readonly updateUserCompletionCallback: UpdateUserCompletionCallback | null;
-  readonly disableEventLogging: boolean;
+  readonly disableAllLogging: boolean;
 
   constructor(options?: StatsigOptions | null) {
     if (options == null) {
@@ -103,7 +103,7 @@ export default class StatsigSDKOptions {
     this.ignoreWindowUndefined = options?.ignoreWindowUndefined ?? false;
     this.updateUserCompletionCallback =
       options?.updateUserCompletionCallback ?? null;
-    this.disableEventLogging = options?.disableEventLogging ?? false;
+    this.disableAllLogging = options?.disableAllLogging ?? false;
   }
 
   private normalizeNumberInput(

@@ -52,6 +52,7 @@ export default class ErrorBoundary {
     error: unknown,
     getExtraData?: ExtraDataExtractor,
   ): void {
+    if (this._options.disableAllLogging) return;
     try {
       const impl = async () => {
         const extra =
