@@ -3,6 +3,7 @@ import {
   StatsigInvalidArgumentError,
   StatsigUninitializedError,
 } from '../Errors';
+import StatsigSDKOptions from '../StatsigSDKOptions';
 
 type ErrorBoundaryRequest = {
   url: string;
@@ -24,7 +25,7 @@ describe('ErrorBoundary', () => {
   ];
 
   beforeEach(() => {
-    boundary = new ErrorBoundary('client-key');
+    boundary = new ErrorBoundary('client-key', new StatsigSDKOptions());
     request = [];
 
     // @ts-ignore
@@ -94,6 +95,19 @@ describe('ErrorBoundary', () => {
         info: err.stack,
       }),
     );
+  });
+
+  it('does not log errors when disabled', () => {
+    boundary = new ErrorBoundary(
+      'client-key',
+      new StatsigSDKOptions({ disableAllLogging: true }),
+    );
+    const err = new URIError();
+    boundary._swallow('', () => {
+      throw err;
+    });
+
+    expect(request.length).toEqual(0);
   });
 
   it('logs error-ish correctly', () => {

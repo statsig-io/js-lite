@@ -57,9 +57,10 @@ export default class StatsigClient {
     }
     this._sdkKey = sdkKey;
     this._startTime = now();
-    this._errorBoundary = new ErrorBoundary(sdkKey);
-    this._ready = false;
     this._options = new StatsigSDKOptions(options);
+    this._errorBoundary = new ErrorBoundary(sdkKey, this._options);
+    this._ready = false;
+
     StatsigLocalStorage.disabled = this._options.disableLocalStorage;
     this._overrides = loadOverridesFromLocalStorage();
     this._identity = new StatsigIdentity(
