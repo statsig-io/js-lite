@@ -97,6 +97,19 @@ describe('ErrorBoundary', () => {
     );
   });
 
+  it('does not log errors when disabled', () => {
+    boundary = new ErrorBoundary(
+      'client-key',
+      new StatsigSDKOptions({ disableAllLogging: true }),
+    );
+    const err = new URIError();
+    boundary._swallow('', () => {
+      throw err;
+    });
+
+    expect(request.length).toEqual(0);
+  });
+
   it('logs error-ish correctly', () => {
     const err = { 'sort-of-an-error': 'but-not-really' };
     boundary._swallow('', () => {
