@@ -311,6 +311,7 @@ export default class StatsigClient {
 
         this._identity._user = this._normalizeUser(user);
         this._store.bootstrap(values);
+        this._logger.resetDedupeKeys();
         fireCompletionCallback(true, null);
         return true;
       },
