@@ -66,6 +66,13 @@ type APIInitializeData = {
 
 type UserCacheValues = APIInitializeData & {
   evaluation_time?: number;
+  bootstrapMetadata?: BootstrapMetadata;
+};
+
+export type BootstrapMetadata = {
+  generatorSDKInfo?: Record<string, string>;
+  lcut?: number;
+  user?: Record<string, unknown>;
 };
 
 const MAX_USER_VALUE_CACHED = 10;
@@ -128,12 +135,31 @@ export default class StatsigStore {
       this._userValues.dynamic_configs = initializeValues.dynamic_configs ?? {};
       this._userValues.layer_configs = initializeValues.layer_configs ?? {};
       this._userValues.evaluation_time = Date.now();
-      this._userValues.time = Date.now();
+      this._userValues.time = initializeValues.time ?? Date.now();
       this._values[key] = this._userValues;
       this._reason = reason;
+      const generatorSDKInfo = initializeValues.sdkInfo as
+        | Record<string, string>
+        | undefined;
+      this._userValues.bootstrapMetadata = {};
+      if (generatorSDKInfo != null) {
+        this._userValues.bootstrapMetadata.generatorSDKInfo = generatorSDKInfo;
+      }
+      if (initializeValues.user != null) {
+        this._userValues.bootstrapMetadata.user =
+          initializeValues.user as Record<string, unknown>;
+      }
+      if (initializeValues.time != null) {
+        this._userValues.bootstrapMetadata.lcut =
+          initializeValues.time as number;
+      }
     } catch (_e) {
       return;
     }
+  }
+
+  public getBootstrapMetadata(): BootstrapMetadata | null {
+    return this._userValues.bootstrapMetadata ?? null;
   }
 
   public isLoaded(): boolean {
