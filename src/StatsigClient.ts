@@ -564,6 +564,7 @@ export default class StatsigClient {
       gate.secondary_exposures,
       result.evaluationDetails,
       isManualExposure,
+      this._store.getBootstrapMetadata(),
     );
   }
 
@@ -618,6 +619,7 @@ export default class StatsigClient {
       localConfig._secondaryExposures,
       localConfig._evaluationDetails,
       isManualExposure,
+      this._store.getBootstrapMetadata(),
     );
   }
 
@@ -688,6 +690,7 @@ export default class StatsigClient {
       isExplicit,
       layer._evaluationDetails,
       isManualExposure,
+      this._store.getBootstrapMetadata(),
     );
   };
 
