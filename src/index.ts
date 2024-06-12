@@ -8,6 +8,7 @@ import { EvaluationDetails, EvaluationReason } from './StatsigStore';
 import { StatsigUser } from './StatsigUser';
 
 export { default as DynamicConfig } from './DynamicConfig';
+export { default as Layer } from './Layer';
 export { StatsigEnvironment, StatsigOptions } from './StatsigSDKOptions';
 export { EvaluationReason } from './StatsigStore';
 export type { EvaluationDetails } from './StatsigStore';
