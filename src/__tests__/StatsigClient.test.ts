@@ -98,7 +98,7 @@ describe('Verify behavior of StatsigClient', () => {
   });
 
   test('that overriding api overrides both api and logevent api', async () => {
-    expect.assertions(2);
+    expect.assertions(3);
     const statsig = new StatsigClient(
       sdkKey,
       { userID: '123' },
@@ -111,6 +111,29 @@ describe('Verify behavior of StatsigClient', () => {
 
     expect(statsig._options.api).toEqual('https://statsig.jkw.com/v1/');
     expect(statsig._options.eventLoggingApi).toEqual(
+      'https://statsig.jkw.com/v1/',
+    );
+    expect(statsig._options.eventLoggingApiForRetries).toEqual(
+      'https://statsig.jkw.com/v1/',
+    );
+  });
+
+  test('that overriding event logging api overrides logevent api for retries', async () => {
+    expect.assertions(2);
+    const statsig = new StatsigClient(
+      sdkKey,
+      { userID: '123' },
+      {
+        eventLoggingApi: 'https://statsig.jkw.com/v1',
+      },
+    );
+
+    await statsig.initializeAsync();
+
+    expect(statsig._options.eventLoggingApi).toEqual(
+      'https://statsig.jkw.com/v1/',
+    );
+    expect(statsig._options.eventLoggingApiForRetries).toEqual(
       'https://statsig.jkw.com/v1/',
     );
   });

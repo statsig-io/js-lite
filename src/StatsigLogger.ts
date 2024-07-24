@@ -300,6 +300,7 @@ export default class StatsigLogger {
         },
         3 /* retries */,
         1000 /* backoff */,
+        0 /* retry attempt */,
         isClosing /* useKeepalive */,
       )
       .then((response) => {
