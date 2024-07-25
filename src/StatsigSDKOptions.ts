@@ -28,6 +28,7 @@ export type StatsigOptions = {
   disableAutoMetricsLogging?: boolean;
   initializeValues?: Record<string, any> | null;
   eventLoggingApi?: string;
+  eventLoggingApiForRetries?: string;
   disableLocalStorage?: boolean;
   ignoreWindowUndefined?: boolean;
   updateUserCompletionCallback?: UpdateUserCompletionCallback;
@@ -54,6 +55,7 @@ export default class StatsigSDKOptions {
   readonly disableAutoMetricsLogging: boolean;
   readonly initializeValues: Record<string, any> | null;
   readonly eventLoggingApi: string;
+  readonly eventLoggingApiForRetries: string;
   readonly disableLocalStorage: boolean;
   readonly ignoreWindowUndefined: boolean;
   readonly updateUserCompletionCallback: UpdateUserCompletionCallback | null;
@@ -99,6 +101,11 @@ export default class StatsigSDKOptions {
     this.eventLoggingApi = eventLoggingApi.endsWith('/')
       ? eventLoggingApi
       : eventLoggingApi + '/';
+    const eventLoggingApiForRetries =
+      options.eventLoggingApiForRetries ?? eventLoggingApi;
+    this.eventLoggingApiForRetries = eventLoggingApiForRetries.endsWith('/')
+      ? eventLoggingApiForRetries
+      : eventLoggingApiForRetries + '/';
     this.disableLocalStorage = options.disableLocalStorage ?? false;
     this.ignoreWindowUndefined = options?.ignoreWindowUndefined ?? false;
     this.updateUserCompletionCallback =

@@ -1,3 +1,4 @@
+import { parse } from 'url';
 import ErrorBoundary from './ErrorBoundary';
 import Identity from './StatsigIdentity';
 import StatsigSDKOptions from './StatsigSDKOptions';
@@ -103,6 +104,7 @@ export default class StatsigNetwork {
     body: object,
     retries: number = 0,
     backoff: number = 1000,
+    retryAttempt: number = 0,
     useKeepalive: boolean = false,
   ): Promise<NetworkResponse> {
     if (this._options.localMode) {
@@ -120,6 +122,8 @@ export default class StatsigNetwork {
 
     const api = [StatsigEndpoint.Initialize].includes(endpointName)
       ? this._options.api
+      : retryAttempt > 0
+      ? this._options.eventLoggingApiForRetries
       : this._options.eventLoggingApi;
     const url = api + endpointName;
     const counter = this.leakyBucket[url];
@@ -184,6 +188,7 @@ export default class StatsigNetwork {
                 body,
                 retries - 1,
                 backoff * 2,
+                retryAttempt + 1,
                 useKeepalive,
               )
                 .then(resolve)
