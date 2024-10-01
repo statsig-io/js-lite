@@ -32,7 +32,7 @@ type APIFeatureGate = {
   name: string;
   value: boolean;
   rule_id: string;
-  secondary_exposures: [];
+  secondary_exposures?: number[] | Record<string, string>[];
 };
 
 export type StoreGateFetchResult = {
@@ -44,12 +44,11 @@ type APIDynamicConfig = {
   name: string;
   value: { [key: string]: unknown };
   rule_id: string;
-  secondary_exposures: [];
-  is_device_based?: boolean;
+  secondary_exposures?: number[] | Record<string, string>[];
   is_user_in_experiment?: boolean;
   is_experiment_active?: boolean;
   allocated_experiment_name: string | null;
-  undelegated_secondary_exposures?: [];
+  undelegated_secondary_exposures?: number[] | Record<string, string>[];
   explicit_parameters?: string[];
 };
 
@@ -62,6 +61,7 @@ type APIInitializeData = {
   user_hash?: string;
   derived_fields?: Record<string, string>;
   hash_used?: string;
+  exposures?: Record<string, string>[];
 };
 
 type UserCacheValues = APIInitializeData & {
@@ -136,11 +136,13 @@ export default class StatsigStore {
       this._userValues.layer_configs = initializeValues.layer_configs ?? {};
       this._userValues.evaluation_time = Date.now();
       this._userValues.time = initializeValues.time ?? Date.now();
+      this._userValues.exposures = initializeValues.exposures ?? [];
+      this._userValues.hash_used = initializeValues.hash_used ?? 'djb2';
       this._values[key] = this._userValues;
       this._reason = reason;
-      const generatorSDKInfo = initializeValues.sdkInfo as
-        | Record<string, string>
-        | undefined;
+      const generatorSDKInfo =
+        (initializeValues.sdkInfo as Record<string, string> | undefined) ??
+        (initializeValues.sdk_info as Record<string, string> | undefined);
       this._userValues.bootstrapMetadata = {};
       if (generatorSDKInfo != null) {
         this._userValues.bootstrapMetadata.generatorSDKInfo = generatorSDKInfo;
@@ -232,9 +234,23 @@ export default class StatsigStore {
     if (value) {
       gateValue = value;
     }
+    gateValue.secondary_exposures = this.mapExposures(
+      gateValue.secondary_exposures ?? [],
+    );
     details = this._getEvaluationDetails(value != null);
 
     return { evaluationDetails: details, gate: gateValue };
+  }
+
+  public mapExposures(
+    exposures: Record<string, string>[] | number[],
+  ): Record<string, string>[] {
+    return exposures.map((exposure) => {
+      if (typeof exposure === 'number') {
+        return (this._userValues.exposures ?? [])[exposure];
+      }
+      return exposure;
+    });
   }
 
   public getConfig(configName: string): DynamicConfig {
@@ -270,8 +286,8 @@ export default class StatsigStore {
       latestValue?.rule_id ?? '',
       details,
       logParameterFunction,
-      latestValue?.secondary_exposures,
-      latestValue?.undelegated_secondary_exposures,
+      this.mapExposures(latestValue?.secondary_exposures ?? []),
+      this.mapExposures(latestValue?.undelegated_secondary_exposures ?? []),
       latestValue?.allocated_experiment_name ?? '',
       latestValue?.explicit_parameters,
     );
@@ -407,7 +423,7 @@ export default class StatsigStore {
       apiConfig?.value ?? {},
       apiConfig?.rule_id ?? '',
       details,
-      apiConfig?.secondary_exposures,
+      this.mapExposures(apiConfig?.secondary_exposures ?? []),
       apiConfig?.allocated_experiment_name ?? '',
       this._makeOnConfigDefaultValueFallback(this._identity._user),
     );
