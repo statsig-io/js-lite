@@ -6,7 +6,19 @@ export default abstract class BootstrapValidator {
     values: Record<string, unknown>,
   ): boolean {
     try {
-      const evaluatedKeys = values['evaluated_keys'];
+      let evaluatedKeys: Record<string, unknown> | undefined = values[
+        'evaluated_keys'
+      ] as Record<string, unknown> | undefined;
+      if (!evaluatedKeys) {
+        const user = values['user'] as Record<string, unknown> | undefined;
+        if (user) {
+          evaluatedKeys = {};
+          evaluatedKeys['userID'] = user['userID'];
+          if (user['customIDs']) {
+            evaluatedKeys['customIDs'] = user['customIDs'];
+          }
+        }
+      }
       if (!evaluatedKeys || typeof evaluatedKeys !== 'object') {
         return true;
       }

@@ -561,7 +561,7 @@ export default class StatsigClient {
       gateName,
       gate.value,
       gate.rule_id,
-      gate.secondary_exposures,
+      this._store.mapExposures(gate.secondary_exposures ?? []),
       result.evaluationDetails,
       isManualExposure,
       this._store.getBootstrapMetadata(),
