@@ -32,7 +32,7 @@ type APIFeatureGate = {
   name: string;
   value: boolean;
   rule_id: string;
-  secondary_exposures?: number[] | Record<string, string>[];
+  secondary_exposures?: string[] | Record<string, string>[];
 };
 
 export type StoreGateFetchResult = {
@@ -44,11 +44,11 @@ type APIDynamicConfig = {
   name: string;
   value: { [key: string]: unknown };
   rule_id: string;
-  secondary_exposures?: number[] | Record<string, string>[];
+  secondary_exposures?: string[] | Record<string, string>[];
   is_user_in_experiment?: boolean;
   is_experiment_active?: boolean;
   allocated_experiment_name: string | null;
-  undelegated_secondary_exposures?: number[] | Record<string, string>[];
+  undelegated_secondary_exposures?: string[] | Record<string, string>[];
   explicit_parameters?: string[];
 };
 
@@ -61,7 +61,7 @@ type APIInitializeData = {
   user_hash?: string;
   derived_fields?: Record<string, string>;
   hash_used?: string;
-  exposures?: Record<string, string>[];
+  exposures?: Record<string, Record<string, string>>;
 };
 
 type UserCacheValues = APIInitializeData & {
@@ -243,11 +243,11 @@ export default class StatsigStore {
   }
 
   public mapExposures(
-    exposures: Record<string, string>[] | number[],
+    exposures: Record<string, string>[] | string[],
   ): Record<string, string>[] {
     return exposures.map((exposure) => {
-      if (typeof exposure === 'number') {
-        return (this._userValues.exposures ?? [])[exposure];
+      if (typeof exposure === 'string') {
+        return (this._userValues.exposures ?? {})[exposure];
       }
       return exposure;
     });
