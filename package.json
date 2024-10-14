@@ -1,6 +1,6 @@
 {
   "name": "statsig-js-lite",
-  "version": "v1.6.0",
+  "version": "1.6.0",
   "description": "A slimmed version of the Statsig JavaScript client SDK for single user environments.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
